@@ -127,7 +127,7 @@ export function WorkoutScreen() {
               onPress={() => { setActiveDayIdx(i); setJustCompleted(false); }}
               style={[styles.tab, active && { backgroundColor: d.color }]}
             >
-              <Text style={[styles.tabDay, active && styles.tabActiveText]}>
+              <Text style={[styles.tabDay, active && styles.tabActiveText]} numberOfLines={1}>
                 {d.label}
               </Text>
               {isNext && !active && <View style={[styles.nextDot, { backgroundColor: d.color }]} />}
@@ -244,13 +244,13 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   calBtnText: { fontSize: 18 },
-  tabs: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, gap: Spacing.sm },
+  tabs: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, gap: Spacing.sm, paddingRight: Spacing.xxl },
   tab: {
     backgroundColor: Colors.card, borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.lg, paddingVertical: 10, alignItems: 'center',
+    paddingHorizontal: 18, paddingVertical: 11, alignItems: 'center', justifyContent: 'center',
     flexDirection: 'row', gap: 6,
   },
-  tabDay: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.textMuted },
+  tabDay: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.textMuted, includeFontPadding: false },
   tabActiveText: { color: '#000' },
   nextDot: { width: 6, height: 6, borderRadius: 3 },
   scroll: { paddingHorizontal: Spacing.lg, gap: Spacing.sm, paddingTop: Spacing.xs },
