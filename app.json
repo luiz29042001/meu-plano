@@ -1,0 +1,79 @@
+{
+  "expo": {
+    "name": "Meu Plano",
+    "slug": "app-saude",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F0F0F"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.meuplano.app",
+      "googleServicesFile": "./GoogleService-Info.plist"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0F0F0F"
+      },
+      "package": "com.meuplano.app",
+      "googleServicesFile": "./google-services.json",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "meuplano.app",
+              "pathPrefix": "/auth"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34,
+            "buildToolsVersion": "34.0.0"
+          }
+        }
+      ],
+      "@react-native-google-signin/google-signin"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "scheme": "meuplano",
+    "extra": {
+      "supabaseUrl": "https://SEU_PROJECT_REF.supabase.co",
+      "supabaseAnonKey": "SUPABASE_ANON_KEY_PLACEHOLDER",
+      "googleWebClientId": "000000000000-44gakb07dp4rufakqjm4nbanq7cgnfhe.apps.googleusercontent.com",
+      "googleAndroidClientId": "000000000000-o3n4o1qo9cmf2srjkhe48su4if6v3f95.apps.googleusercontent.com",
+      "eas": {
+        "projectId": "0632e100-7c40-4a5d-ae24-245c1d5a89d1"
+      }
+    },
+    "owner": "luiz2904s-team"
+  }
+}
