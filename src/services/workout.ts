@@ -155,3 +155,20 @@ export async function fetchUserStats(userId: string): Promise<UserStats | null> 
   if (error) throw error;
   return data as UserStats | null;
 }
+
+// ─── LAST COMPLETION (para sugerir o próximo treino pela sequência) ──────────
+
+export async function fetchLastCompletion(
+  userId: string
+): Promise<WorkoutCompletion | null> {
+  const { data, error } = await supabase
+    .from('workout_completions')
+    .select('*, workout_day:workout_days(*)')
+    .eq('user_id', userId)
+    .order('completed_date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data as WorkoutCompletion | null;
+}

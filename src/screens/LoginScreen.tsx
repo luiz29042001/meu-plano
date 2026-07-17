@@ -88,8 +88,9 @@ export function LoginScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   inner: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: 24,
+    paddingVertical: 40,
     justifyContent: 'center',
     gap: 24,
   },

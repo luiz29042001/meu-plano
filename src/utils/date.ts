@@ -7,8 +7,8 @@ export function formatDate(date: Date): string {
 }
 
 export function todayWeekdayIndex(): number {
-  const d = new Date().getDay(); // 0=Sun
-  return d === 0 ? 6 : d - 1;   // 0=Mon..6=Sun
+  const d = new Date().getDay(); // 0=Dom
+  return d === 0 ? 6 : d - 1;    // 0=Seg..6=Dom
 }
 
 export const MONTH_NAMES = [
@@ -16,12 +16,17 @@ export const MONTH_NAMES = [
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ];
 
-export const WEEKDAY_SHORT = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+// Cabeçalho do calendário: começa no Domingo (padrão getDay()=0).
+// Abreviações de 3 letras evitam a ambiguidade de S/S e Q/Q.
+export const WEEKDAY_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 export function getDaysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
 }
 
+// Retorna 0=Dom .. 6=Sáb para o 1º dia do mês.
+// Este valor é o número de células vazias antes do dia 1 no grid,
+// já que o grid começa no Domingo.
 export function getFirstDayOfMonth(year: number, month: number): number {
   return new Date(year, month, 1).getDay();
 }
