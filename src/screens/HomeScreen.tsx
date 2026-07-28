@@ -44,7 +44,7 @@ export function HomeScreen() {
         {nextWorkout && (
           <TouchableOpacity
             style={styles.nextCard}
-            onPress={() => navigation.navigate('Workout')}
+            onPress={() => navigation.navigate('Workout', { daySlug: nextWorkout.slug })}
             activeOpacity={0.9}
           >
             <View style={[styles.nextAccent, { backgroundColor: nextWorkout.color }]} />

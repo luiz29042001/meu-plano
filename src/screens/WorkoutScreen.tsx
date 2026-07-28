@@ -4,7 +4,7 @@ import {
   ScrollView, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useWorkout } from '../hooks/useWorkout';
 import { useTimer } from '../contexts/TimerContext';
 import { Colors, Radius, FontSize, Spacing } from '../utils/theme';
@@ -57,23 +57,37 @@ function ExerciseCard({
 
 export function WorkoutScreen() {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const requestedSlug: string | undefined = route.params?.daySlug;
   const {
     days, checks, todayCompletion, nextWorkout,
     loading, toggleCheck, completeWorkout,
   } = useWorkout();
   const { launchTimer } = useTimer();
 
-  // Pré-seleciona o PRÓXIMO treino da sequência (não o dia da semana).
-  // O usuário pode trocar manualmente nas abas.
+  // Seleção do treino ativo, nesta ordem de prioridade:
+  // 1) daySlug vindo por navegação (ex: card "Próximo treino" da Home)
+  // 2) próximo treino da sequência PPL (fallback quando se chega sem parâmetro)
+  // O usuário pode sempre trocar manualmente nas abas depois.
   const [activeDayIdx, setActiveDayIdx] = useState<number | null>(null);
   const [justCompleted, setJustCompleted] = useState(false);
+  // Guarda o último slug já aplicado, para re-sincronizar caso a Home mande
+  // um slug diferente em uma nova navegação (tela permanece montada na stack).
+  const [appliedSlug, setAppliedSlug] = useState<string | null>(null);
 
-  // Quando os dias carregam e ainda não há seleção manual, aponta para o próximo treino.
   useEffect(() => {
-    if (activeDayIdx === null && days.length > 0 && nextWorkout) {
+    if (days.length === 0) return;
+
+    if (requestedSlug && requestedSlug !== appliedSlug) {
+      setActiveDayIdx(getDayIndexBySlug(days, requestedSlug));
+      setAppliedSlug(requestedSlug);
+      return;
+    }
+
+    if (!requestedSlug && activeDayIdx === null && nextWorkout) {
       setActiveDayIdx(getDayIndexBySlug(days, nextWorkout.slug));
     }
-  }, [days, nextWorkout, activeDayIdx]);
+  }, [days, nextWorkout, requestedSlug, appliedSlug, activeDayIdx]);
 
   const resolvedIdx = activeDayIdx ?? 0;
   const activeDay: WorkoutDay | undefined = days[resolvedIdx];

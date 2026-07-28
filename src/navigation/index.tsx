@@ -13,7 +13,7 @@ import { Colors } from '../utils/theme';
 
 export type RootStackParamList = {
   Home: undefined;
-  Workout: undefined;
+  Workout: { daySlug?: string } | undefined;
   Diet: undefined;
   Calendar: undefined;
 };
