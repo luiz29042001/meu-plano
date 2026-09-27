@@ -22,6 +22,10 @@ export function HomeScreen() {
   const { nextWorkout, lastCompletion, todayCompletion, stats, loading } = useWorkout();
 
   const firstName = profile?.full_name?.split(' ')[0] ?? 'Atleta';
+  const programName = profile?.program?.name ?? 'Meu treino';
+  const programDesc = profile?.program?.description ?? '';
+  // Antes da migração o campo não existe (undefined) → dieta ativa por compatibilidade
+  const dietEnabled = profile?.diet_enabled !== false;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -101,24 +105,28 @@ export function HomeScreen() {
           </View>
           <View style={styles.navInfo}>
             <Text style={styles.navTitle}>Treinos</Text>
-            <Text style={styles.navSub}>Push · Pull · Legs</Text>
+            <Text style={styles.navSub}>{programDesc ? `${programName} · ${programDesc}` : programName}</Text>
           </View>
           <Text style={styles.chevron}>›</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.navBtn}
+          style={[styles.navBtn, !dietEnabled && styles.navBtnDisabled]}
           onPress={() => navigation.navigate('Diet')}
           activeOpacity={0.9}
         >
-          <View style={[styles.navIcon, { backgroundColor: Colors.green + '26' }]}>
-            <Text style={styles.navIconEmoji}>🥗</Text>
+          <View style={[styles.navIcon, { backgroundColor: dietEnabled ? Colors.green + '26' : Colors.surface }]}>
+            <Text style={[styles.navIconEmoji, !dietEnabled && styles.dimmed]}>🥗</Text>
           </View>
           <View style={styles.navInfo}>
-            <Text style={styles.navTitle}>Dieta</Text>
-            <Text style={styles.navSub}>Dietas A e B · déficit calórico</Text>
+            <Text style={[styles.navTitle, !dietEnabled && { color: Colors.textFaint }]}>Dieta</Text>
+            <Text style={styles.navSub}>
+              {dietEnabled ? 'Dietas A e B · déficit calórico' : 'Pendente · em criação'}
+            </Text>
           </View>
-          <Text style={styles.chevron}>›</Text>
+          {dietEnabled
+            ? <Text style={styles.chevron}>›</Text>
+            : <View style={styles.pendingBadge}><Text style={styles.pendingBadgeText}>EM BREVE</Text></View>}
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -202,6 +210,13 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     padding: Spacing.lg,
   },
+  navBtnDisabled: { backgroundColor: Colors.bgElevated },
+  dimmed: { opacity: 0.35 },
+  pendingBadge: {
+    backgroundColor: Colors.surface, borderRadius: Radius.pill,
+    paddingHorizontal: 10, paddingVertical: 4,
+  },
+  pendingBadgeText: { fontSize: 10, fontWeight: '700', color: Colors.textFaint, letterSpacing: 0.5 },
   navIcon: { width: 52, height: 52, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
   navIconEmoji: { fontSize: 26 },
   navInfo: { flex: 1 },

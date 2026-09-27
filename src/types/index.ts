@@ -7,8 +7,18 @@ export interface Profile {
   height_cm: number;
   age: number;
   diet_variant: 'A' | 'B';
+  program_id?: number | null;
+  diet_enabled?: boolean;
+  program?: WorkoutProgram | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface WorkoutProgram {
+  id: number;
+  slug: string;
+  name: string;
+  description: string | null;
 }
 
 export interface WorkoutDay {
@@ -20,6 +30,7 @@ export interface WorkoutDay {
   color: string;
   muscles: string;
   is_rest: boolean;
+  program_id?: number;
   exercises?: Exercise[];
 }
 

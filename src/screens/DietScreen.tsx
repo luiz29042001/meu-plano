@@ -144,6 +144,37 @@ export function DietScreen() {
     }
   };
 
+  // Dieta ainda não criada para este usuário → tela de pendência
+  if (profile && profile.diet_enabled === false) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Text style={styles.backText}>‹</Text>
+          </TouchableOpacity>
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerSub}>Plano Alimentar</Text>
+            <Text style={styles.headerTitle}>Dieta</Text>
+          </View>
+        </View>
+        <View style={styles.pendingWrap}>
+          <View style={styles.pendingIconCircle}>
+            <Text style={styles.pendingIcon}>🥗</Text>
+          </View>
+          <Text style={styles.pendingTitle}>Dieta em criação</Text>
+          <Text style={styles.pendingText}>
+            Seu plano alimentar personalizado ainda está sendo preparado.
+            Assim que estiver pronto, ele aparecerá aqui automaticamente.
+          </Text>
+          <View style={styles.pendingPill}>
+            <View style={styles.pendingDot} />
+            <Text style={styles.pendingPillText}>Pendente</Text>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
@@ -222,6 +253,25 @@ export function DietScreen() {
 }
 
 const styles = StyleSheet.create({
+  pendingWrap: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 32, paddingBottom: 80,
+  },
+  pendingIconCircle: {
+    width: 96, height: 96, borderRadius: 48, backgroundColor: Colors.card,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 20,
+  },
+  pendingIcon: { fontSize: 44, opacity: 0.45 },
+  pendingTitle: { fontSize: FontSize.xl, fontWeight: '700', color: Colors.text, marginBottom: 10 },
+  pendingText: {
+    fontSize: FontSize.base, color: Colors.textMuted, textAlign: 'center', lineHeight: 22, marginBottom: 24,
+  },
+  pendingPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: Colors.card, borderRadius: 500, paddingHorizontal: 14, paddingVertical: 7,
+  },
+  pendingDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.orange },
+  pendingPillText: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.textMuted },
   container: { flex: 1, backgroundColor: Colors.bg },
   header: {
     flexDirection: 'row',

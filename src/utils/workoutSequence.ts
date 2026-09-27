@@ -1,45 +1,38 @@
 import type { WorkoutDay } from '../types';
 
-// A sequência de treino PPL segue a ordem dos slugs abaixo (ignora DESCANSO).
-// O "próximo treino" é definido pelo ÚLTIMO treino concluído — não pelo dia da
-// semana. Se o último foi 'push-a', o próximo é 'pull-a', e assim por diante,
-// dando a volta ao chegar no fim.
-export const PPL_SEQUENCE = [
-  'push-a',
-  'pull-a',
-  'legs-a',
-  'push-b',
-  'pull-b',
-  'legs-b',
-];
+// O próximo treino é definido pelo ÚLTIMO treino concluído, seguindo a ordem
+// dos dias de treino do programa do usuário (weekday_index), ignorando descanso.
+// Funciona para qualquer programa: PPL 6x, Inferiores/Superiores 5x, etc.
 
-/**
- * Retorna o slug do próximo treino dado o slug do último treino concluído.
- * Se não houver treino anterior (usuário novo), começa em 'push-a'.
- */
-export function getNextWorkoutSlug(lastSlug: string | null | undefined): string {
-  if (!lastSlug) return PPL_SEQUENCE[0];
-  const idx = PPL_SEQUENCE.indexOf(lastSlug);
-  if (idx === -1) return PPL_SEQUENCE[0];
-  const nextIdx = (idx + 1) % PPL_SEQUENCE.length;
-  return PPL_SEQUENCE[nextIdx];
+export function getTrainingSequence(days: WorkoutDay[]): WorkoutDay[] {
+  return days
+    .filter(d => !d.is_rest)
+    .sort((a, b) => a.weekday_index - b.weekday_index);
 }
 
-/**
- * Encontra o objeto WorkoutDay correspondente ao próximo treino da sequência.
- */
 export function getNextWorkoutDay(
   days: WorkoutDay[],
   lastSlug: string | null | undefined
 ): WorkoutDay | null {
-  const nextSlug = getNextWorkoutSlug(lastSlug);
-  return days.find(d => d.slug === nextSlug) ?? null;
+  const seq = getTrainingSequence(days);
+  if (seq.length === 0) return null;
+  const idx = lastSlug ? seq.findIndex(d => d.slug === lastSlug) : -1;
+  if (idx === -1) return seq[0];
+  return seq[(idx + 1) % seq.length];
 }
 
-/**
- * Índice de um treino na aba (para pré-selecionar no seletor).
- */
 export function getDayIndexBySlug(days: WorkoutDay[], slug: string): number {
   const idx = days.findIndex(d => d.slug === slug);
   return idx === -1 ? 0 : idx;
+}
+
+/** Agrupa os dias de treino por cor para montar a legenda do calendário. */
+export function buildLegend(days: WorkoutDay[]): { color: string; label: string }[] {
+  const groups: Record<string, string[]> = {};
+  const order: string[] = [];
+  getTrainingSequence(days).forEach(d => {
+    if (!groups[d.color]) { groups[d.color] = []; order.push(d.color); }
+    groups[d.color].push(d.label);
+  });
+  return order.map(color => ({ color, label: groups[color].join(' / ') }));
 }

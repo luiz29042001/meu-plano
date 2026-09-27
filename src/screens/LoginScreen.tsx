@@ -42,8 +42,8 @@ export function LoginScreen() {
 
         <View style={styles.cards}>
           {[
-            { icon: '🏋️', label: 'Push · Pull · Legs', sub: '6 dias/semana' },
-            { icon: '🥗', label: 'Dieta personalizada', sub: '~2.400 kcal/dia' },
+            { icon: '🏋️', label: 'Treino personalizado', sub: 'Rotina própria para cada pessoa' },
+            { icon: '🥗', label: 'Dieta personalizada', sub: 'Plano alimentar individual' },
             { icon: '📅', label: 'Histórico completo', sub: 'Calendário e métricas' },
           ].map(item => (
             <View key={item.label} style={styles.card}>

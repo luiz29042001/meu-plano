@@ -14,7 +14,9 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.meuplano.app",
-      "googleServicesFile": "./GoogleService-Info.plist"
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {

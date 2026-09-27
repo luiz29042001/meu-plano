@@ -17,7 +17,8 @@ function todayStr() {
 }
 
 export function useWorkout() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const programKey = profile?.program_id ?? 'default';
   const [days, setDays] = useState<WorkoutDay[]>([]);
   const [checks, setChecks] = useState<Record<number, boolean>>({});
   const [todayCompletion, setTodayCompletion] = useState<WorkoutCompletion | null>(null);
@@ -52,7 +53,7 @@ export function useWorkout() {
     } finally {
       setLoading(false);
     }
-  }, [user, today]);
+  }, [user, today, programKey]);
 
   useEffect(() => { load(); }, [load]);
 

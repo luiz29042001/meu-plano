@@ -12,13 +12,7 @@ import {
   getDaysInMonth, getFirstDayOfMonth,
 } from '../utils/date';
 
-function slugColor(slug?: string): string {
-  if (!slug) return Colors.textFaint;
-  if (slug.startsWith('push')) return Colors.pushColor;
-  if (slug.startsWith('pull')) return Colors.pullColor;
-  if (slug.startsWith('legs')) return Colors.legsColor;
-  return Colors.textFaint;
-}
+import { buildLegend } from '../utils/workoutSequence';
 
 export function CalendarScreen() {
   const navigation = useNavigation<any>();
@@ -26,7 +20,8 @@ export function CalendarScreen() {
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
 
-  const { completionByDate, stats, loading } = useCalendar(viewYear, viewMonth);
+  const { completionByDate, stats, programDays, loading } = useCalendar(viewYear, viewMonth);
+  const legend = buildLegend(programDays);
 
   const prevMonth = () => {
     if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1); }
@@ -98,7 +93,7 @@ export function CalendarScreen() {
                   const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                   const completion = completionByDate[dateStr];
                   const isToday = isCurrentMonth && day === now.getDate();
-                  const cColor = slugColor(completion?.workout_day?.slug);
+                  const cColor = completion?.workout_day?.color ?? Colors.textFaint;
                   return (
                     <View key={dateStr} style={styles.cell}>
                       <View style={[
@@ -114,7 +109,7 @@ export function CalendarScreen() {
                           {day}
                         </Text>
                         {completion?.workout_day && (
-                          <Text style={[styles.cellLabel, { color: cColor }]} numberOfLines={1}>
+                          <Text style={[styles.cellLabel, { color: cColor }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
                             {completion.workout_day.label}
                           </Text>
                         )}
@@ -143,11 +138,7 @@ export function CalendarScreen() {
         {/* Legend */}
         <View style={styles.legend}>
           <Text style={styles.legendTitle}>Legenda</Text>
-          {[
-            { color: Colors.pushColor, label: 'Push A / Push B' },
-            { color: Colors.pullColor, label: 'Pull A / Pull B' },
-            { color: Colors.legsColor, label: 'Legs A / Legs B' },
-          ].map(l => (
+          {legend.map(l => (
             <View key={l.label} style={styles.legendRow}>
               <View style={[styles.legendDot, { backgroundColor: l.color }]} />
               <Text style={styles.legendLabel}>{l.label}</Text>

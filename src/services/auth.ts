@@ -6,8 +6,11 @@ import Constants from 'expo-constants';
 import { supabase } from './supabase';
 
 export function configureGoogleSignIn() {
+  const extra = Constants.expoConfig?.extra ?? {};
   GoogleSignin.configure({
-    webClientId: Constants.expoConfig?.extra?.googleWebClientId,
+    webClientId: extra.googleWebClientId,
+    // No iOS o SDK do Google exige o client ID próprio da plataforma
+    ...(extra.googleIosClientId ? { iosClientId: extra.googleIosClientId } : {}),
     scopes: ['profile', 'email'],
   });
 }

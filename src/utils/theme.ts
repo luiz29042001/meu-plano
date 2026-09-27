@@ -8,6 +8,7 @@ export const Colors = {
   bgElevated: '#212124',  // raised sections
   card: '#26262A',        // cards
   cardHover: '#2E2E33',   // pressed / hover
+  cardAlt: '#212124',     // inner lists inside cards
   surface: '#33333A',     // inputs, pills, inner surfaces
   border: '#3A3A40',      // subtle separators
 

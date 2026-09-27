@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useWorkout } from '../hooks/useWorkout';
 import { useTimer } from '../contexts/TimerContext';
+import { useAuth } from '../contexts/AuthContext';
 import { Colors, Radius, FontSize, Spacing } from '../utils/theme';
 import { getDayIndexBySlug } from '../utils/workoutSequence';
 import type { WorkoutDay, Exercise } from '../types';
@@ -64,6 +65,8 @@ export function WorkoutScreen() {
     loading, toggleCheck, completeWorkout,
   } = useWorkout();
   const { launchTimer } = useTimer();
+  const { profile } = useAuth();
+  const programName = profile?.program?.name ?? 'Meu treino';
 
   // Seleção do treino ativo, nesta ordem de prioridade:
   // 1) daySlug vindo por navegação (ex: card "Próximo treino" da Home)
@@ -84,8 +87,8 @@ export function WorkoutScreen() {
       return;
     }
 
-    if (!requestedSlug && activeDayIdx === null && nextWorkout) {
-      setActiveDayIdx(getDayIndexBySlug(days, nextWorkout.slug));
+    if (!requestedSlug && activeDayIdx === null) {
+      setActiveDayIdx(nextWorkout ? getDayIndexBySlug(days, nextWorkout.slug) : 0);
     }
   }, [days, nextWorkout, requestedSlug, appliedSlug, activeDayIdx]);
 
@@ -122,7 +125,7 @@ export function WorkoutScreen() {
           <Text style={styles.backText}>‹</Text>
         </TouchableOpacity>
         <View>
-          <Text style={styles.headerSub}>Push · Pull · Legs</Text>
+          <Text style={styles.headerSub}>{programName}</Text>
           <Text style={styles.headerTitle}>Treinos</Text>
         </View>
         <TouchableOpacity onPress={() => navigation.navigate('Calendar')} style={styles.calBtn}>
