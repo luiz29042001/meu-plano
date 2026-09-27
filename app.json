@@ -45,8 +45,12 @@
     },
     "web": {
       "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/favicon.png"
+      "output": "single",
+      "favicon": "./assets/favicon.png",
+      "name": "Meu Plano",
+      "shortName": "Meu Plano",
+      "themeColor": "#1A1A1C",
+      "backgroundColor": "#1A1A1C"
     },
     "plugins": [
       "expo-router",
