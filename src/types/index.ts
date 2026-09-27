@@ -9,6 +9,8 @@ export interface Profile {
   diet_variant: 'A' | 'B';
   program_id?: number | null;
   diet_enabled?: boolean;
+  diet_plan_id?: number | null;
+  diet_plan?: { id: number; slug: string; name: string } | null;
   program?: WorkoutProgram | null;
   created_at: string;
   updated_at: string;
@@ -101,6 +103,29 @@ export interface Meal {
   items: DietItem[];
   isSupp?: boolean;
   isFasted?: boolean;
+  note?: string;           // observações da refeição (ex.: orientações da nutricionista)
+  isAlternative?: boolean; // opção alternativa: aparece na lista, mas não soma no total do dia
+}
+
+export interface DietVariant {
+  key: 'A' | 'B';
+  label: string;
+  banner: string;
+  meals: Meal[];
+}
+
+export interface DietPlanData {
+  name: string;
+  subtitle: string;
+  note: string;
+  variants: DietVariant[];
+}
+
+export interface DietPlan {
+  id: number;
+  slug: string;
+  name: string;
+  data: DietPlanData;
 }
 
 export interface TimerState {

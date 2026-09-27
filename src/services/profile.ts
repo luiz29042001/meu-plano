@@ -4,12 +4,12 @@ import type { Profile } from '../types';
 export async function fetchProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('*, program:workout_programs(*)')
+    .select('*, program:workout_programs(*), diet_plan:diet_plans(id, slug, name)')
     .eq('id', userId)
     .maybeSingle();
 
   // Compatibilidade: se a relação com programas ainda não existir, cai no select simples
-  if (error && /workout_programs|relationship/i.test(error.message)) {
+  if (error && /workout_programs|diet_plans|relationship/i.test(error.message)) {
     const fallback = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
     if (fallback.error) throw fallback.error;
     return fallback.data as Profile | null;

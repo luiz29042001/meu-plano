@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ScrollView,
+  ScrollView, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
 import { updateDietVariant } from '../services/profile';
 import { makeMeals, calcTotals } from '../services/dietData';
+import { fetchDietPlan } from '../services/diet';
 import { Colors, Radius, FontSize } from '../utils/theme';
-import type { Meal, DietItem } from '../types';
+import type { Meal, DietItem, DietPlan, DietVariant } from '../types';
 
 function SubsPanel({ item, color }: { item: DietItem; color: string }) {
   if (!item.subs.length) return null;
@@ -20,7 +21,7 @@ function SubsPanel({ item, color }: { item: DietItem; color: string }) {
         <View key={i} style={styles.subCard}>
           <View style={styles.subHeader}>
             <Text style={styles.subName}>{sub.name}</Text>
-            <Text style={[styles.subKcal, { color }]}>{sub.kcal} kcal</Text>
+            {sub.kcal > 0 && <Text style={[styles.subKcal, { color }]}>{sub.kcal} kcal</Text>}
           </View>
           <Text style={styles.subQty}>{sub.qty}</Text>
           <Text style={styles.subNote}>{sub.note}</Text>
@@ -119,6 +120,11 @@ function MealCard({ meal }: { meal: Meal }) {
 
       {open && (
         <View style={styles.mealItems}>
+          {meal.note ? (
+            <View style={styles.mealNote}>
+              <Text style={styles.mealNoteText}>📝 {meal.note}</Text>
+            </View>
+          ) : null}
           {meal.items.map((item, i) => (
             <MealItem key={i} item={item} mealColor={meal.color} />
           ))}
@@ -128,12 +134,37 @@ function MealCard({ meal }: { meal: Meal }) {
   );
 }
 
+// Dieta do Luiz (definida no código) no mesmo formato dos planos do banco
+function legacyVariants(): DietVariant[] {
+  return [
+    { key: 'A', label: 'A', banner: '🫘 Dieta A — Com feijão ou lentilha no almoço', meals: makeMeals('A') },
+    { key: 'B', label: 'B', banner: '🌰 Dieta B — Com grão-de-bico (sem feijão/lentilha)', meals: makeMeals('B') },
+  ];
+}
+
 export function DietScreen() {
   const navigation = useNavigation<any>();
   const { profile, refreshProfile } = useAuth();
   const [variant, setVariant] = useState<'A' | 'B'>(profile?.diet_variant ?? 'A');
+  const [dbPlan, setDbPlan] = useState<DietPlan | null>(null);
+  const [planLoading, setPlanLoading] = useState<boolean>(!!profile?.diet_plan_id);
 
-  const meals = makeMeals(variant);
+  const planId = profile?.diet_plan_id ?? null;
+  useEffect(() => {
+    if (!planId) { setDbPlan(null); setPlanLoading(false); return; }
+    let alive = true;
+    setPlanLoading(true);
+    fetchDietPlan(planId)
+      .then(p => { if (alive) setDbPlan(p); })
+      .catch(() => { if (alive) setDbPlan(null); })
+      .finally(() => { if (alive) setPlanLoading(false); });
+    return () => { alive = false; };
+  }, [planId]);
+
+  const isLegacy = !planId;
+  const variants: DietVariant[] = isLegacy ? legacyVariants() : (dbPlan?.data.variants ?? []);
+  const current = variants.find(v => v.key === variant) ?? variants[0];
+  const meals = current?.meals ?? [];
   const totals = calcTotals(meals);
 
   const handleVariantChange = async (v: 'A' | 'B') => {
@@ -144,19 +175,36 @@ export function DietScreen() {
     }
   };
 
+  const header = (sub: string, title: string, withToggle: boolean) => (
+    <View style={styles.header}>
+      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <Text style={styles.backText}>‹</Text>
+      </TouchableOpacity>
+      <View style={styles.headerCenter}>
+        <Text style={styles.headerSub}>{sub}</Text>
+        <Text style={styles.headerTitle}>{title}</Text>
+      </View>
+      {withToggle && variants.length > 1 && (
+        <View style={styles.variantToggle}>
+          {variants.map(v => (
+            <TouchableOpacity
+              key={v.key}
+              onPress={() => handleVariantChange(v.key)}
+              style={[styles.variantBtn, current?.key === v.key && { backgroundColor: Colors.green }]}
+            >
+              <Text style={[styles.variantText, current?.key === v.key && { color: '#fff' }]}>{v.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+
   // Dieta ainda não criada para este usuário → tela de pendência
   if (profile && profile.diet_enabled === false) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Text style={styles.backText}>‹</Text>
-          </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerSub}>Plano Alimentar</Text>
-            <Text style={styles.headerTitle}>Dieta</Text>
-          </View>
-        </View>
+        {header('Plano Alimentar', 'Dieta', false)}
         <View style={styles.pendingWrap}>
           <View style={styles.pendingIconCircle}>
             <Text style={styles.pendingIcon}>🥗</Text>
@@ -175,48 +223,39 @@ export function DietScreen() {
     );
   }
 
+  if (planLoading || (!isLegacy && !current)) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        {header('Plano Alimentar', 'Dieta', false)}
+        {planLoading
+          ? <ActivityIndicator color={Colors.textMuted} style={{ flex: 1 }} />
+          : <View style={styles.pendingWrap}><Text style={styles.pendingText}>Não foi possível carregar o plano alimentar. Tente novamente em instantes.</Text></View>}
+      </SafeAreaView>
+    );
+  }
+
+  const bannerColor = current.key === 'A' ? Colors.green : Colors.pullColor;
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Text style={styles.backText}>‹</Text>
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerSub}>Déficit Calórico</Text>
-          <Text style={styles.headerTitle}>Plano Alimentar</Text>
-        </View>
-        {/* Variant toggle */}
-        <View style={styles.variantToggle}>
-          {(['A', 'B'] as const).map(v => (
-            <TouchableOpacity
-              key={v}
-              onPress={() => handleVariantChange(v)}
-              style={[styles.variantBtn, variant === v && { backgroundColor: Colors.green }]}
-            >
-              <Text style={[styles.variantText, variant === v && { color: '#fff' }]}>{v}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
+      {header(isLegacy ? 'Déficit Calórico' : (dbPlan?.data.name ?? 'Plano Alimentar'), 'Plano Alimentar', true)}
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
         {/* Variant banner */}
-        <View style={[styles.variantBanner, { backgroundColor: variant === 'A' ? '#1A2A1A' : '#1A1A2A' }]}>
-          <Text style={{ color: variant === 'A' ? Colors.green : Colors.pullColor, fontSize: FontSize.sm }}>
-            {variant === 'A'
-              ? '🫘 Dieta A — Com feijão ou lentilha no almoço'
-              : '🌰 Dieta B — Com grão-de-bico (sem feijão/lentilha)'}
-          </Text>
+        <View style={[styles.variantBanner, { backgroundColor: current.key === 'A' ? '#1A2A1A' : '#1A1A2A' }]}>
+          <Text style={{ color: bannerColor, fontSize: FontSize.sm, lineHeight: 18 }}>{current.banner}</Text>
         </View>
 
         {/* Macro summary */}
         <View style={styles.macroCard}>
-          <Text style={styles.macroTitle}>Meta Diária — Perda de Gordura</Text>
+          <Text style={styles.macroTitle}>
+            {isLegacy ? 'Meta Diária — Perda de Gordura' : `Estimativa diária — ${dbPlan?.data.subtitle ?? ''}`}
+          </Text>
           <View style={styles.macroRow}>
             {[
               { label: 'Calorias', value: `${totals.kcal}`, unit: 'kcal', color: Colors.orange },
-              { label: 'Proteína', value: `${totals.p}g`, unit: '2g/kg', color: Colors.pushColor },
+              { label: 'Proteína', value: `${totals.p}g`, unit: isLegacy ? '2g/kg' : '', color: Colors.pushColor },
               { label: 'Carbo', value: `${totals.c}g`, unit: '', color: Colors.pullColor },
               { label: 'Gordura', value: `${totals.g}g`, unit: '', color: Colors.green },
             ].map(m => (
@@ -229,7 +268,9 @@ export function DietScreen() {
           </View>
           <View style={styles.macroNote}>
             <Text style={styles.macroNoteText}>
-              💡 TMB Mifflin × 1.65 (ativo, 1h treino 6×/sem) − 20% ≈ {totals.kcal} kcal
+              {isLegacy
+                ? `💡 TMB Mifflin × 1.65 (ativo, 1h treino 6×/sem) − 20% ≈ ${totals.kcal} kcal`
+                : `💡 ${dbPlan?.data.note ?? ''}`}
             </Text>
           </View>
         </View>
@@ -241,8 +282,9 @@ export function DietScreen() {
         <View style={styles.hydrationCard}>
           <Text style={styles.hydrationTitle}>💧 Hidratação</Text>
           <Text style={styles.hydrationText}>
-            Mínimo 3,5L de água por dia. Em dias de treino, adicione 500ml por hora de exercício.
-            Ao tomar psyllium, conte os 300ml de cada dose.
+            {isLegacy
+              ? 'Mínimo 3,5L de água por dia. Em dias de treino, adicione 500ml por hora de exercício. Ao tomar psyllium, conte os 300ml de cada dose.'
+              : 'Beba água ao longo do dia e reforce nos dias de treino, especialmente ao acordar, já que o treino é em jejum.'}
           </Text>
         </View>
 
@@ -253,6 +295,8 @@ export function DietScreen() {
 }
 
 const styles = StyleSheet.create({
+  mealNote: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 4 },
+  mealNoteText: { fontSize: FontSize.sm, color: Colors.textMuted, lineHeight: 18 },
   pendingWrap: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
     paddingHorizontal: 32, paddingBottom: 80,

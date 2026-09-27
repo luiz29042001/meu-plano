@@ -121,7 +121,7 @@ export function HomeScreen() {
           <View style={styles.navInfo}>
             <Text style={[styles.navTitle, !dietEnabled && { color: Colors.textFaint }]}>Dieta</Text>
             <Text style={styles.navSub}>
-              {dietEnabled ? 'Dietas A e B · déficit calórico' : 'Pendente · em criação'}
+              {dietEnabled ? (profile?.diet_plan ? `${profile.diet_plan.name} · treino e descanso` : 'Dietas A e B · déficit calórico') : 'Pendente · em criação'}
             </Text>
           </View>
           {dietEnabled
