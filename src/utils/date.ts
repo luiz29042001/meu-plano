@@ -1,9 +1,14 @@
-export function todayISO(): string {
-  return new Date().toISOString().split('T')[0];
+// Data no fuso horário do aparelho (YYYY-MM-DD). toISOString() usa UTC e,
+// no Brasil, jogaria treinos feitos após as 21h para o dia seguinte.
+export function formatDate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
-export function formatDate(date: Date): string {
-  return date.toISOString().split('T')[0];
+export function todayISO(): string {
+  return formatDate(new Date());
 }
 
 export function todayWeekdayIndex(): number {

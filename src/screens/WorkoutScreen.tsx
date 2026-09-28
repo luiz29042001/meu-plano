@@ -103,11 +103,21 @@ export function WorkoutScreen() {
 
   const alreadyMarked = !!todayCompletion && todayCompletion.workout_day_id === activeDay?.id;
 
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+
   const handleComplete = async () => {
-    if (!activeDay) return;
-    await completeWorkout(activeDay.id);
-    setJustCompleted(true);
-    setTimeout(() => setJustCompleted(false), 3000);
+    if (!activeDay || saving) return;
+    setSaving(true);
+    setSaveError(false);
+    const ok = await completeWorkout(activeDay.id);
+    setSaving(false);
+    if (ok) {
+      setJustCompleted(true);
+      setTimeout(() => setJustCompleted(false), 3000);
+    } else {
+      setSaveError(true);
+    }
   };
 
   if (loading || activeDayIdx === null) {
@@ -221,13 +231,20 @@ export function WorkoutScreen() {
             ) : (
               <TouchableOpacity
                 onPress={handleComplete}
-                disabled={!allDone}
+                disabled={!allDone || saving}
                 style={[styles.completeBtn, { backgroundColor: allDone ? Colors.green : Colors.surface }]}
               >
                 <Text style={[styles.completeBtnText, { color: allDone ? '#000' : Colors.textFaint }]}>
-                  {allDone ? '✓ Marcar como concluído' : `Conclua os exercícios (${checkedCount}/${total})`}
+                  {saving
+                    ? 'Salvando…'
+                    : allDone ? '✓ Marcar como concluído' : `Conclua os exercícios (${checkedCount}/${total})`}
                 </Text>
               </TouchableOpacity>
+            )}
+            {saveError && !justCompleted && (
+              <Text style={styles.saveErrorText}>
+                Não foi possível salvar agora. Verifique a conexão e toque novamente.
+              </Text>
             )}
           </View>
         )}
@@ -342,6 +359,9 @@ const styles = StyleSheet.create({
   },
   alreadyText: { fontSize: FontSize.md, color: Colors.green, fontWeight: '600' },
   completeBtn: { borderRadius: Radius.pill, padding: Spacing.lg, alignItems: 'center' },
+  saveErrorText: {
+    fontSize: FontSize.sm, color: Colors.red, textAlign: 'center', marginTop: 10, lineHeight: 18,
+  },
   completeBtnText: { fontSize: FontSize.base, fontWeight: '700' },
   hint: { fontSize: FontSize.sm, color: Colors.textFaint, textAlign: 'center', lineHeight: 18, marginTop: 4 },
 });

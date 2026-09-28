@@ -12,8 +12,10 @@ import {
 import { getNextWorkoutDay } from '../utils/workoutSequence';
 import type { WorkoutDay, ExerciseCheck, WorkoutCompletion, UserStats } from '../types';
 
+import { todayISO } from '../utils/date';
+
 function todayStr() {
-  return new Date().toISOString().split('T')[0];
+  return todayISO();
 }
 
 export function useWorkout() {
@@ -68,18 +70,22 @@ export function useWorkout() {
     }
   }, [user, today]);
 
-  const completeWorkout = useCallback(async (workoutDayId: number) => {
-    if (!user) return;
+  const completeWorkout = useCallback(async (workoutDayId: number): Promise<boolean> => {
+    if (!user) return false;
     try {
-      const completion = await markWorkoutComplete(user.id, workoutDayId, today);
+      // Limite de 20s: se a rede travar, o usuário recebe aviso em vez de ficar sem resposta
+      const completion = await Promise.race([
+        markWorkoutComplete(user.id, workoutDayId, today),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 20000)),
+      ]);
       setTodayCompletion(completion);
-      // Atualiza o último treino também, para a sequência avançar na hora
-      const last = await fetchLastCompletion(user.id);
-      setLastCompletion(last);
-      const updatedStats = await fetchUserStats(user.id);
-      setStats(updatedStats);
+      // Atualizações secundárias não bloqueiam a confirmação
+      fetchLastCompletion(user.id).then(setLastCompletion).catch(() => {});
+      fetchUserStats(user.id).then(setStats).catch(() => {});
+      return true;
     } catch (e: any) {
-      setError(e.message);
+      setError(e?.message ?? 'Erro ao salvar');
+      return false;
     }
   }, [user, today]);
 

@@ -38,12 +38,20 @@ useEffect(() => {
     setLoading(false);
   });
 
-  const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+  // Importante: não chamar o Supabase diretamente dentro deste callback.
+  // No navegador, a renovação automática da sessão (≈ a cada 1h) segura uma trava
+  // interna; uma consulta feita aqui dentro fica esperando essa trava e todas as
+  // requisições seguintes congelam. Por isso a carga do perfil é adiada (setTimeout)
+  // e só acontece em login/alteração de usuário — não em cada renovação de token.
+  const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
     setSession(session);
-    if (session?.user) {
-      loadProfile(session.user.id);
-    } else {
+    if (!session?.user) {
       setProfile(null);
+      return;
+    }
+    if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+      const uid = session.user.id;
+      setTimeout(() => { loadProfile(uid); }, 0);
     }
   });
 
