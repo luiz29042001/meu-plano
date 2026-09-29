@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ScrollView, ActivityIndicator,
+  ScrollView, ActivityIndicator, TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -12,16 +12,42 @@ import { Colors, Radius, FontSize, Spacing } from '../utils/theme';
 import { getDayIndexBySlug } from '../utils/workoutSequence';
 import type { WorkoutDay, Exercise } from '../types';
 
+type NoteStatus = 'idle' | 'saving' | 'saved' | 'error';
+
 function ExerciseCard({
-  exercise, dayColor, checked, onToggle, onLaunchTimer,
+  exercise, dayColor, checked, onToggle, onLaunchTimer, note, onSaveNote,
 }: {
   exercise: Exercise;
   dayColor: string;
   checked: boolean;
   onToggle: () => void;
   onLaunchTimer: () => void;
+  note: string;
+  onSaveNote: (text: string) => Promise<boolean>;
 }) {
   const [showTip, setShowTip] = useState(false);
+  const [showNote, setShowNote] = useState(false);
+  const [draft, setDraft] = useState(note);
+  const [status, setStatus] = useState<NoteStatus>('idle');
+  const hasNote = note.length > 0;
+  const dirty = draft.trim() !== note;
+
+  const openNote = () => {
+    setShowTip(false);
+    setShowNote(v => {
+      if (!v) { setDraft(note); setStatus('idle'); }
+      return !v;
+    });
+  };
+
+  const save = async () => {
+    if (status === 'saving') return;
+    setStatus('saving');
+    const ok = await onSaveNote(draft);
+    setStatus(ok ? 'saved' : 'error');
+    if (ok) setTimeout(() => setStatus(s => (s === 'saved' ? 'idle' : s)), 2000);
+  };
+
   return (
     <View style={[styles.exCard, checked && styles.exCardDone]}>
       <View style={styles.exRow}>
@@ -37,12 +63,19 @@ function ExerciseCard({
             <Text style={styles.exReps}>{exercise.reps} reps</Text>
             <Text style={styles.exRest}>⏱ {exercise.rest_seconds}s</Text>
           </View>
+          {hasNote && !showNote && (
+            <Text style={styles.notePreview} numberOfLines={2}>📝 {note}</Text>
+          )}
         </View>
         <View style={styles.exActions}>
           <TouchableOpacity onPress={onLaunchTimer} style={styles.iconBtn}>
             <Text style={{ fontSize: 16, color: Colors.textMuted }}>⏱</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setShowTip(v => !v)} style={styles.iconBtn}>
+          <TouchableOpacity onPress={openNote} style={[styles.iconBtn, showNote && { backgroundColor: dayColor + '22' }]}>
+            <Text style={{ fontSize: 15, color: showNote || hasNote ? dayColor : Colors.textMuted }}>✎</Text>
+            {hasNote && !showNote && <View style={[styles.noteDot, { backgroundColor: dayColor }]} />}
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => { setShowNote(false); setShowTip(v => !v); }} style={styles.iconBtn}>
             <Text style={{ fontSize: 16, color: showTip ? dayColor : Colors.textMuted }}>ⓘ</Text>
           </TouchableOpacity>
         </View>
@@ -50,6 +83,37 @@ function ExerciseCard({
       {showTip && exercise.tip && (
         <View style={styles.tipBox}>
           <Text style={styles.tipText}>{exercise.tip}</Text>
+        </View>
+      )}
+      {showNote && (
+        <View style={styles.noteBox}>
+          <Text style={styles.noteLabel}>Anotação deste exercício</Text>
+          <TextInput
+            style={styles.noteInput}
+            value={draft}
+            onChangeText={t => { setDraft(t); if (status !== 'saving') setStatus('idle'); }}
+            placeholder="Ex.: 12 kg por lado · subir carga na próxima · pegada fechada"
+            placeholderTextColor={Colors.textFaint}
+            multiline
+            maxLength={2000}
+            textAlignVertical="top"
+          />
+          <View style={styles.noteFooter}>
+            <Text style={[styles.noteStatus, status === 'error' && { color: Colors.red }, status === 'saved' && { color: Colors.green }]}>
+              {status === 'saving' ? 'Salvando…'
+                : status === 'saved' ? '✓ Salvo'
+                : status === 'error' ? 'Não foi possível salvar. Tente de novo.'
+                : draft.trim() === '' && hasNote ? 'Salvar em branco apaga a anotação'
+                : ''}
+            </Text>
+            <TouchableOpacity
+              onPress={save}
+              disabled={!dirty || status === 'saving'}
+              style={[styles.noteSaveBtn, { backgroundColor: dirty ? Colors.green : Colors.surface }]}
+            >
+              <Text style={[styles.noteSaveText, { color: dirty ? '#000' : Colors.textFaint }]}>Salvar</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
     </View>
@@ -62,7 +126,7 @@ export function WorkoutScreen() {
   const requestedSlug: string | undefined = route.params?.daySlug;
   const {
     days, checks, todayCompletion, nextWorkout,
-    loading, toggleCheck, completeWorkout,
+    loading, toggleCheck, completeWorkout, notes, saveNote,
   } = useWorkout();
   const { launchTimer } = useTimer();
   const { profile } = useAuth();
@@ -163,7 +227,7 @@ export function WorkoutScreen() {
         })}
       </ScrollView>
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {activeDay && (
           <View style={styles.dayCard}>
             <View style={[styles.dayAccent, { backgroundColor: activeDay.color }]} />
@@ -213,6 +277,8 @@ export function WorkoutScreen() {
             checked={!!checks[ex.id]}
             onToggle={() => toggleCheck(ex.id, !!checks[ex.id])}
             onLaunchTimer={() => launchTimer(ex.name, ex.rest_seconds, activeDay?.color ?? Colors.pushColor)}
+            note={notes[ex.id] ?? ''}
+            onSaveNote={text => saveNote(ex.id, text)}
           />
         ))}
 
@@ -261,6 +327,18 @@ export function WorkoutScreen() {
 }
 
 const styles = StyleSheet.create({
+  notePreview: { fontSize: FontSize.sm, color: Colors.textMuted, marginTop: 6, lineHeight: 17 },
+  noteDot: { position: 'absolute', top: 5, right: 5, width: 6, height: 6, borderRadius: 3 },
+  noteBox: { borderTopWidth: 1, borderTopColor: Colors.border, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
+  noteLabel: { fontSize: FontSize.xs, color: Colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 },
+  noteInput: {
+    minHeight: 76, backgroundColor: Colors.bgElevated, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.border,
+    color: Colors.text, fontSize: FontSize.base, paddingHorizontal: 12, paddingVertical: 10, lineHeight: 20,
+  },
+  noteFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, gap: 10 },
+  noteStatus: { flex: 1, fontSize: FontSize.sm, color: Colors.textFaint },
+  noteSaveBtn: { borderRadius: Radius.pill, paddingHorizontal: 20, paddingVertical: 9 },
+  noteSaveText: { fontSize: FontSize.md, fontWeight: '700' },
   container: { flex: 1, backgroundColor: Colors.bg },
   header: {
     flexDirection: 'row', alignItems: 'center',

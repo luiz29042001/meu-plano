@@ -172,3 +172,37 @@ export async function fetchLastCompletion(
   if (error) throw error;
   return data as WorkoutCompletion | null;
 }
+
+// ─── EXERCISE NOTES (uma anotação por usuário + exercício) ───────────────────
+
+export async function fetchExerciseNotes(userId: string): Promise<Record<number, string>> {
+  const { data, error } = await supabase
+    .from('exercise_notes')
+    .select('exercise_id, note')
+    .eq('user_id', userId);
+  if (error) throw error;
+  const map: Record<number, string> = {};
+  (data ?? []).forEach((r: { exercise_id: number; note: string }) => { map[r.exercise_id] = r.note; });
+  return map;
+}
+
+/** Salva (sobrescreve) a anotação do exercício. Texto vazio apaga a anotação. */
+export async function saveExerciseNote(userId: string, exerciseId: number, note: string): Promise<void> {
+  const text = note.trim();
+  if (!text) {
+    const { error } = await supabase
+      .from('exercise_notes')
+      .delete()
+      .eq('user_id', userId)
+      .eq('exercise_id', exerciseId);
+    if (error) throw error;
+    return;
+  }
+  const { error } = await supabase
+    .from('exercise_notes')
+    .upsert(
+      { user_id: userId, exercise_id: exerciseId, note: text, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id,exercise_id' }
+    );
+  if (error) throw error;
+}

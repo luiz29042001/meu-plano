@@ -8,6 +8,8 @@ import {
   upsertExerciseCheck,
   markWorkoutComplete,
   fetchUserStats,
+  fetchExerciseNotes,
+  saveExerciseNote,
 } from '../services/workout';
 import { getNextWorkoutDay } from '../utils/workoutSequence';
 import type { WorkoutDay, ExerciseCheck, WorkoutCompletion, UserStats } from '../types';
@@ -26,6 +28,7 @@ export function useWorkout() {
   const [todayCompletion, setTodayCompletion] = useState<WorkoutCompletion | null>(null);
   const [lastCompletion, setLastCompletion] = useState<WorkoutCompletion | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
+  const [notes, setNotes] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,6 +53,8 @@ export function useWorkout() {
       setTodayCompletion(completion);
       setLastCompletion(last);
       setStats(userStats);
+      // Anotações carregadas à parte: uma falha aqui nunca impede o treino de abrir
+      fetchExerciseNotes(user.id).then(setNotes).catch(() => {});
     } catch (e: any) {
       setError(e.message ?? 'Erro ao carregar dados');
     } finally {
@@ -89,6 +94,25 @@ export function useWorkout() {
     }
   }, [user, today]);
 
+  const saveNote = useCallback(async (exerciseId: number, text: string): Promise<boolean> => {
+    if (!user) return false;
+    try {
+      await Promise.race([
+        saveExerciseNote(user.id, exerciseId, text),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 20000)),
+      ]);
+      setNotes(prev => {
+        const next = { ...prev };
+        const t = text.trim();
+        if (t) next[exerciseId] = t; else delete next[exerciseId];
+        return next;
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }, [user]);
+
   // Próximo treino sugerido: baseado no ÚLTIMO treino concluído (sequência PPL),
   // não no dia da semana. Se ainda não há treino registrado, começa em Push A.
   const lastSlug = lastCompletion?.workout_day?.slug ?? null;
@@ -105,6 +129,8 @@ export function useWorkout() {
     error,
     toggleCheck,
     completeWorkout,
+    notes,
+    saveNote,
     refresh: load,
   };
 }
