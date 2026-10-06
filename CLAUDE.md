@@ -128,20 +128,20 @@ Comandos de apoio, todos com confirmação do Luiz antes de qualquer envio ou mu
 
 | Agente | Papel | Modelo | Escreve em |
 |---|---|---|---|
-| tech-lead | arquitetura, plano técnico, critérios de aceite | Opus 5.5 | `docs/tech/` |
-| design-director | direção visual, spec e mockup da tela | Opus 5.5 | `docs/design/` |
-| backend-engineer | Supabase: migrações, RLS, serviços | Opus 5.5 | código + `supabase/migrations/` |
+| tech-lead | arquitetura, plano técnico, critérios de aceite | Sonnet 5.5 | `docs/tech/` |
+| design-director | direção visual, spec e mockup da tela | Sonnet 5.5 | `docs/design/` |
+| backend-engineer | Supabase: migrações, RLS, serviços | Sonnet 5.5 | código + `supabase/migrations/` |
 | ui-builder | implementa a tela conforme spec | Sonnet 5.5 | código de UI |
 | qa-tester | valida a versão web via Playwright MCP | Sonnet 5.5 | `docs/qa/` |
 | code-reviewer | revisa as mudanças | Opus 5.5 | `docs/review/` |
 
-Critério dos modelos: quanto mais cara e silenciosa for a falha, mais forte o modelo (planejamento, banco/RLS, revisão final). Quanto mais volumoso e verificável o trabalho (código de tela, testes), mais econômico. Quem constrói (sonnet) e quem revisa (opus) são de propósito de níveis diferentes.
+Critério dos modelos (decisão do Luiz, 06/10/2026, para economizar): **tudo no Sonnet 5.5, exceto o code-reviewer** (Opus 5.5), que é a última barreira contra falhas caras e silenciosas (segurança, RLS, armadilhas). Quem constrói (sonnet) e quem revisa (opus) seguem de níveis diferentes. Exceções pontuais, pedindo o Opus só naquela chamada: plano técnico e migração do Roadmap item 1 (dono dos planos, migração de dados reais) e o desvio que sobreviver a 2 rodadas de QA/revisão.
 
 Fluxo: tech-lead + design-director (em paralelo) → **Luiz aprova** → backend-engineer (se houver dados) → ui-builder → qa-tester (repete até aprovar) → code-reviewer. Quem constrói nunca se auto-aprova.
 
 ### Regras do pipeline
 
-- **Teto de modelo: Opus 5.5.** Nunca usar `fable` nem qualquer modelo que consuma créditos. Isso vale também ao escolher modelo ao acionar um agente. O uso do Opus é limitado por hora: reservar para planejamento, banco/RLS, design e revisão; código de tela e testes ficam no Sonnet 5.5.
+- **Teto de modelo: Opus 5.5.** Nunca usar `fable` nem qualquer modelo que consuma créditos. Isso vale também ao escolher modelo ao acionar um agente. **Padrão é Sonnet 5.5**; Opus só no code-reviewer e nas exceções acima. Tarefas simples e mecânicas (gerar APK, publicar web, checagens) também no Sonnet.
 - **Resumos para o Luiz** (ele não é desenvolvedor): pt-BR simples, sem jargão. Dizer o que muda no app do ponto de vista dele e o que ele precisa fazer (ex.: gerar novo APK, publicar a web).
 - **Só existe um ambiente do Supabase: produção.** Nenhum agente aplica migração, roda SQL ou executa `supabase db push` sem o Luiz confirmar. Os agentes apenas criam o arquivo em `supabase/migrations/`; a sessão principal explica o impacto em português simples e pede o OK.
 - **Não há suíte de testes nem lint hoje.** A validação é: `tsc`, os dois bundles (Android e web), QA visual na web e revisão. Se criarmos testes, registrar o comando aqui.

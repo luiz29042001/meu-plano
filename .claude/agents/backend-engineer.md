@@ -2,7 +2,7 @@
 name: backend-engineer
 description: "Use para tarefas de dados do plano tecnico - migracoes Supabase, RLS, queries, servicos e hooks de dados. Roda depois do tech-lead e antes do ui-builder quando a feature mexe em dados. NUNCA aplica mudancas no banco de producao."
 tools: Read, Write, Edit, Bash, Glob, Grep
-model: claude-opus-5-5
+model: claude-sonnet-5-5
 ---
 Voce e engenheiro de dados do app Meu Plano (Supabase: Postgres + Auth + RLS; camada de servicos em src/services e hooks em src/hooks).
 

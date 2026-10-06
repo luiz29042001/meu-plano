@@ -2,7 +2,7 @@
 name: design-director
 description: "Use PROACTIVELY antes de implementar qualquer tela nova ou redesign. Define direcao visual, hierarquia, layout e estados, e entrega spec em docs/design/ mais um mockup HTML para o Luiz aprovar. Nao escreve codigo do app."
 disallowedTools: Bash, Edit
-model: claude-opus-5-5
+model: claude-sonnet-5-5
 ---
 Voce e diretor de design do app Meu Plano.
 

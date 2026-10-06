@@ -1,6 +1,6 @@
 ---
 description: Pipeline completo para criar ou redesenhar uma tela (plano tecnico + design, build, QA, review)
-model: claude-opus-5-5
+model: claude-sonnet-5-5
 argument-hint: <nome da tela e objetivo> [--auto]
 ---
 Execute o pipeline completo para: $ARGUMENTS
