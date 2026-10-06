@@ -13,7 +13,7 @@ Contexto do projeto para o Claude Code. Leia antes de qualquer alteração.
 
 - **OK explícito antes de:** aplicar migração/SQL de escrita, publicar (web, `git push`), gerar build EAS, apagar arquivos/dados/branches, mudar configurações de serviços externos, instalar programas. Leitura não precisa de OK. Nunca peça senha ou token no chat.
 - **Modelos:** teto Opus 5.5 (`claude-opus-5-5`); nunca `fable`.
-- **Onde roda:** no notebook (Windows: `npx.cmd` no PowerShell; `gh`, `eas` e Supabase CLI já logados; Supabase já linkado) ou na nuvem (Linux: `npx` normal; chaves do Expo e do Supabase via Credenciais de API do ambiente; o link do Supabase e o login do EAS NÃO existem lá — teste antes e, se não funcionar, deixe build EAS e `db push` para o notebook). Todo trabalho vai para o GitHub para a outra máquina enxergar.
+- **Onde roda:** no notebook (Windows: `npx.cmd` no PowerShell; `gh`, `eas` e Supabase CLI já logados; Supabase já linkado) ou na nuvem (Linux: `npx` normal; chaves do Expo e do Supabase via Credenciais de API do ambiente; o link do Supabase e o login do EAS NÃO existem lá). Testado na nuvem em 06/10/2026: **EAS funciona** com `EXPO_TOKEN=placeholder npx eas-cli@latest <comando>` (o proxy troca pelo token real; `whoami` → luiz2904); **Supabase funciona pela Management API** (`curl https://api.supabase.com/v1/projects/SEU_PROJECT_REF/database/query -d '{"query":"..."}'`; esse endpoint também ESCREVE, então mesma regra de OK para qualquer SQL de escrita); `db push` pela CLI segue no notebook. O Playwright MCP do `.mcp.json` só roda no Windows; na nuvem use o `playwright` global (`require($(npm root -g)/playwright)`) com o Chromium pré-instalado. Todo trabalho vai para o GitHub para a outra máquina enxergar.
 
 ## O que é o app
 
