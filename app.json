@@ -22,7 +22,7 @@
         "resizeMode": "contain",
         "backgroundColor": "#F1F1EF",
         "dark": {
-          "image": "./assets/splash-icon.png",
+          "image": "./assets/splash-icon-dark.png",
           "backgroundColor": "#222221"
         }
       }
@@ -39,7 +39,7 @@
         "resizeMode": "contain",
         "backgroundColor": "#F1F1EF",
         "dark": {
-          "image": "./assets/splash-icon.png",
+          "image": "./assets/splash-icon-dark.png",
           "backgroundColor": "#222221"
         }
       },
