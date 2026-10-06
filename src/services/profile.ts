@@ -1,35 +1,23 @@
 import { supabase } from './supabase';
 import type { Profile } from '../types';
 
+// Observação: `*` em profiles é proposital. Se o app for publicado antes da
+// migração que cria `diet_fixed`, a coluna só vem ausente (sem quebrar o login).
 export async function fetchProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('*, program:workout_programs(*), diet_plan:diet_plans(id, slug, name)')
+    .select('*, program:workout_programs(id, slug, name, description), diet_plan:diet_plans(id, slug, name)')
     .eq('id', userId)
     .maybeSingle();
-
-  // Compatibilidade: se a relação com programas ainda não existir, cai no select simples
-  if (error && /workout_programs|diet_plans|relationship/i.test(error.message)) {
-    const fallback = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
-    if (fallback.error) throw fallback.error;
-    return fallback.data as Profile | null;
-  }
 
   if (error) throw error;
   return data as Profile | null;
 }
 
-export async function upsertProfile(profile: Partial<Profile> & { id: string }): Promise<Profile> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .upsert({ ...profile, updated_at: new Date().toISOString() })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data as Profile;
-}
-
+/**
+ * Único campo do perfil que o app grava. O banco só permite ao usuário
+ * alterar full_name, diet_variant e updated_at (migração 20261005120000).
+ */
 export async function updateDietVariant(
   userId: string,
   variant: 'A' | 'B'

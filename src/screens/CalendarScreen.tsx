@@ -1,26 +1,77 @@
 import React, { useState } from 'react';
-import {
-  View, Text, TouchableOpacity, StyleSheet,
-  ScrollView, ActivityIndicator,
-} from 'react-native';
+import { View, Text, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
 import { useCalendar } from '../hooks/useCalendar';
-import { Colors, Radius, FontSize, Spacing } from '../utils/theme';
+import { useTheme, makeStyles } from '../contexts/ThemeContext';
+import { useTimerInsets } from '../hooks/useTimerInsets';
+import { Font, FontSize, Radius, Spacing, Touch, Tracking, numberLineHeight } from '../utils/theme';
 import {
   MONTH_NAMES, WEEKDAY_SHORT,
-  getDaysInMonth, getFirstDayOfMonth,
+  getDaysInMonth, getFirstDayOfMonth, todayISO,
 } from '../utils/date';
-
 import { buildLegend } from '../utils/workoutSequence';
+import { ScreenHeader } from '../components/ScreenHeader';
+import { NumbersRow } from '../components/NumbersRow';
+import { ErrorBlock } from '../components/ErrorBlock';
+import { Skeleton } from '../components/Skeleton';
+
+const CELL_HEIGHT = 56;
+const BAR_HEIGHT = 4;
+
+const useStyles = makeStyles(c => ({
+  container: { flex: 1, backgroundColor: c.bg },
+  scroll: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.sm },
+  monthNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  arrow: { width: Touch.min, height: Touch.min, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.sm },
+  arrowHover: { backgroundColor: c.cardHover },
+  arrowText: { fontFamily: Font.condMedium, fontSize: FontSize.xxl, color: c.text, includeFontPadding: false, lineHeight: FontSize.xxl },
+  monthCenter: { alignItems: 'center' },
+  monthName: {
+    fontFamily: Font.condSemi, fontSize: FontSize.xxxl, lineHeight: numberLineHeight(FontSize.xxxl),
+    letterSpacing: Tracking.tight, color: c.text, textTransform: 'uppercase', includeFontPadding: false,
+  },
+  monthYear: { fontFamily: Font.body, fontSize: FontSize.md, color: c.textMuted },
+  block: { marginTop: Spacing.xl },
+  weekRow: { flexDirection: 'row', marginTop: Spacing.xl },
+  weekCell: { width: `${100 / 7}%`, alignItems: 'center', paddingVertical: Spacing.xs },
+  weekLabel: {
+    fontFamily: Font.condMedium, fontSize: FontSize.sm, color: c.textFaint,
+    textTransform: 'uppercase', includeFontPadding: false,
+  },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', borderTopWidth: 1, borderTopColor: c.border },
+  cell: {
+    width: `${100 / 7}%`, height: CELL_HEIGHT, alignItems: 'center', justifyContent: 'center',
+    borderBottomWidth: 1, borderBottomColor: c.border,
+  },
+  cellToday: { borderWidth: 1.5, borderColor: c.borderStrong },
+  day: {
+    fontFamily: Font.condSemi, fontSize: FontSize.title, color: c.textMuted, includeFontPadding: false,
+    fontVariant: ['tabular-nums'],
+  },
+  dayDone: { color: c.text, fontFamily: Font.condBold },
+  dayFuture: { color: c.textFaint },
+  dayBar: { position: 'absolute', left: Spacing.sm, right: Spacing.sm, bottom: Spacing.xs, height: BAR_HEIGHT },
+  emptyMonth: { marginTop: Spacing.md, fontFamily: Font.body, fontSize: FontSize.base, color: c.textMuted },
+  legend: { marginTop: Spacing.xxl },
+  legendTitle: {
+    fontFamily: Font.condSemi, fontSize: FontSize.xl, color: c.text, textTransform: 'uppercase',
+    letterSpacing: Tracking.caps, marginBottom: Spacing.xs, includeFontPadding: false,
+  },
+  legendRow: { minHeight: Touch.min, flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  legendBar: { width: 16, height: BAR_HEIGHT },
+  legendLabel: { flex: 1, fontFamily: Font.body, fontSize: FontSize.base, color: c.textMuted },
+  skelRow: { flexDirection: 'row', gap: Spacing.md },
+}));
 
 export function CalendarScreen() {
-  const navigation = useNavigation<any>();
+  const styles = useStyles();
+  const { dayColor } = useTheme();
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
+  const timerInsets = useTimerInsets();
 
-  const { completionByDate, stats, programDays, loading } = useCalendar(viewYear, viewMonth);
+  const { completionByDate, stats, programDays, loading, status, error, retry } = useCalendar(viewYear, viewMonth);
   const legend = buildLegend(programDays);
 
   const prevMonth = () => {
@@ -34,8 +85,10 @@ export function CalendarScreen() {
 
   const firstDay = getFirstDayOfMonth(viewYear, viewMonth); // 0=Dom
   const daysInMonth = getDaysInMonth(viewYear, viewMonth);
-  const isCurrentMonth = viewYear === now.getFullYear() && viewMonth === now.getMonth();
+  const today = todayISO();
   const completedThisMonth = Object.keys(completionByDate).length;
+  const isLoading = loading || status === 'loading';
+  const monthName = MONTH_NAMES[viewMonth];
 
   // Monta a matriz de células: vazias antes do dia 1 + os dias do mês.
   const cells: (number | null)[] = [
@@ -45,208 +98,122 @@ export function CalendarScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Text style={styles.backText}>‹</Text>
-        </TouchableOpacity>
-        <View>
-          <Text style={styles.headerSub}>Histórico</Text>
-          <Text style={styles.headerTitle}>Treinos Concluídos</Text>
-        </View>
-      </View>
+      <ScreenHeader title="Calendário" subtitle="Histórico de treinos" />
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-
-        {/* Month navigator */}
+      <ScrollView
+        contentContainerStyle={[styles.scroll, { paddingBottom: timerInsets.bottom }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {timerInsets.top > 0 && <View style={{ height: timerInsets.top }} />}
+        {/* Mês */}
         <View style={styles.monthNav}>
-          <TouchableOpacity onPress={prevMonth} style={styles.navBtn}>
-            <Text style={styles.navArrow}>‹</Text>
-          </TouchableOpacity>
-          <View style={styles.monthCenter}>
-            <Text style={styles.monthName}>{MONTH_NAMES[viewMonth]}</Text>
-            <Text style={styles.monthMeta}>
-              {viewYear} · {completedThisMonth} treino{completedThisMonth !== 1 ? 's' : ''}
-            </Text>
+          <Pressable
+            onPress={prevMonth}
+            accessibilityRole="button"
+            accessibilityLabel="Mês anterior"
+            style={({ pressed }) => [styles.arrow, pressed && styles.arrowHover]}
+          >
+            <Text style={styles.arrowText}>‹</Text>
+          </Pressable>
+          <View style={styles.monthCenter} accessible accessibilityRole="header" accessibilityLabel={`${monthName} de ${viewYear}`}>
+            <Text style={styles.monthName} numberOfLines={1}>{monthName}</Text>
+            <Text style={styles.monthYear}>{viewYear}</Text>
           </View>
-          <TouchableOpacity onPress={nextMonth} style={styles.navBtn}>
-            <Text style={styles.navArrow}>›</Text>
-          </TouchableOpacity>
+          <Pressable
+            onPress={nextMonth}
+            accessibilityRole="button"
+            accessibilityLabel="Próximo mês"
+            style={({ pressed }) => [styles.arrow, pressed && styles.arrowHover]}
+          >
+            <Text style={styles.arrowText}>›</Text>
+          </Pressable>
         </View>
 
-        {/* Calendar card */}
-        <View style={styles.calendarCard}>
-          {/* Weekday headers */}
-          <View style={styles.weekRow}>
-            {WEEKDAY_SHORT.map((w, i) => (
-              <View key={i} style={styles.weekCell}>
-                <Text style={styles.weekLabel}>{w}</Text>
+        {/* Números */}
+        <View style={styles.block}>
+          {stats && !isLoading ? (
+            <NumbersRow items={[
+              { value: String(completedThisMonth), label: 'neste mês' },
+              { value: String(stats.total_workouts), label: 'no total' },
+            ]} />
+          ) : status === 'error' ? null : (
+            <View style={styles.skelRow}>
+              <Skeleton width={120} height={72} />
+              <Skeleton width={120} height={72} />
+            </View>
+          )}
+        </View>
+
+        {/* Grade */}
+        {status === 'error' ? (
+          <View style={styles.block}>
+            <ErrorBlock
+              title="Não foi possível carregar o calendário."
+              cause={error ?? 'Confira a internet.'}
+              onRetry={retry}
+            />
+          </View>
+        ) : (
+          <>
+            <View style={styles.weekRow}>
+              {WEEKDAY_SHORT.map((w, i) => (
+                <View key={i} style={styles.weekCell}>
+                  <Text style={styles.weekLabel} numberOfLines={1}>{w}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={styles.grid}>
+              {cells.map((day, i) => {
+                if (!day) return <View key={`empty-${i}`} style={styles.cell} />;
+                const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const completion = isLoading ? undefined : completionByDate[dateStr];
+                const isToday = dateStr === today;
+                const isFuture = dateStr > today;
+                const dayLabel = completion?.workout_day?.label;
+                return (
+                  <View
+                    key={dateStr}
+                    style={[styles.cell, isToday && styles.cellToday]}
+                    accessible
+                    accessibilityLabel={
+                      completion
+                        ? `${day} de ${monthName.toLowerCase()}, ${dayLabel ?? 'treino'} concluído`
+                        : `${day} de ${monthName.toLowerCase()}, sem treino`
+                    }
+                  >
+                    <Text style={[
+                      styles.day,
+                      isFuture && styles.dayFuture,
+                      completion && styles.dayDone,
+                    ]}>
+                      {day}
+                    </Text>
+                    {completion && (
+                      <View style={[styles.dayBar, { backgroundColor: dayColor(completion.workout_day?.color) }]} />
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+            {!isLoading && completedThisMonth === 0 && (
+              <Text style={styles.emptyMonth}>Nenhum treino em {monthName.toLowerCase()}.</Text>
+            )}
+          </>
+        )}
+
+        {/* Legenda */}
+        {legend.length > 0 && (
+          <View style={styles.legend}>
+            <Text style={styles.legendTitle} accessibilityRole="header">Legenda</Text>
+            {legend.map(l => (
+              <View key={l.label} style={styles.legendRow}>
+                <View style={[styles.legendBar, { backgroundColor: dayColor(l.color) }]} />
+                <Text style={styles.legendLabel}>{l.label}</Text>
               </View>
             ))}
           </View>
-
-          {loading
-            ? <ActivityIndicator color={Colors.textMuted} style={{ marginVertical: 32 }} />
-            : (
-              <View style={styles.grid}>
-                {cells.map((day, i) => {
-                  if (!day) return <View key={`empty-${i}`} style={styles.cell} />;
-                  const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                  const completion = completionByDate[dateStr];
-                  const isToday = isCurrentMonth && day === now.getDate();
-                  const cColor = completion?.workout_day?.color ?? Colors.textFaint;
-                  return (
-                    <View key={dateStr} style={styles.cell}>
-                      <View style={[
-                        styles.cellInner,
-                        completion && { backgroundColor: cColor + '26', borderColor: cColor, borderWidth: 1 },
-                        isToday && !completion && styles.cellToday,
-                      ]}>
-                        <Text style={[
-                          styles.cellDay,
-                          completion && { color: cColor, fontWeight: '700' },
-                          isToday && !completion && { color: Colors.green, fontWeight: '700' },
-                        ]}>
-                          {day}
-                        </Text>
-                        {completion?.workout_day && (
-                          <Text style={[styles.cellLabel, { color: cColor }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
-                            {completion.workout_day.label}
-                          </Text>
-                        )}
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-        </View>
-
-        {/* Stats — 2 cards (removido "Sequência atual") */}
-        {stats && (
-          <View style={styles.statRow}>
-            <View style={styles.statCard}>
-              <Text style={[styles.statValue, { color: Colors.green }]}>{stats.total_workouts}</Text>
-              <Text style={styles.statLabel}>Total de treinos</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={[styles.statValue, { color: Colors.orange }]}>{completedThisMonth}</Text>
-              <Text style={styles.statLabel}>Neste mês</Text>
-            </View>
-          </View>
         )}
-
-        {/* Legend */}
-        <View style={styles.legend}>
-          <Text style={styles.legendTitle}>Legenda</Text>
-          {legend.map(l => (
-            <View key={l.label} style={styles.legendRow}>
-              <View style={[styles.legendDot, { backgroundColor: l.color }]} />
-              <Text style={styles.legendLabel}>{l.label}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.md,
-    gap: Spacing.md,
-  },
-  backBtn: {
-    width: 40, height: 40, borderRadius: Radius.pill,
-    backgroundColor: Colors.card,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  backText: { fontSize: 24, color: Colors.text, lineHeight: 28 },
-  headerSub: { fontSize: FontSize.xs, color: Colors.textFaint, textTransform: 'uppercase', letterSpacing: 1 },
-  headerTitle: { fontSize: FontSize.xl, fontWeight: '700', color: Colors.text },
-  scroll: { padding: Spacing.lg, gap: Spacing.md },
-  monthNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.xs,
-  },
-  navBtn: {
-    width: 40, height: 40, borderRadius: Radius.pill,
-    backgroundColor: Colors.card,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  navArrow: { fontSize: 22, color: Colors.text },
-  monthCenter: { alignItems: 'center' },
-  monthName: { fontSize: FontSize.lg, fontWeight: '700', color: Colors.text },
-  monthMeta: { fontSize: FontSize.sm, color: Colors.textMuted, marginTop: 2 },
-  calendarCard: {
-    backgroundColor: Colors.card,
-    borderRadius: Radius.xl,
-    padding: Spacing.md,
-  },
-  weekRow: {
-    flexDirection: 'row',
-    marginBottom: Spacing.sm,
-  },
-  weekCell: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  weekLabel: {
-    fontSize: FontSize.xs, fontWeight: '600', color: Colors.textFaint,
-    paddingVertical: Spacing.xs,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  cell: {
-    width: `${100 / 7}%`,
-    aspectRatio: 1,
-    padding: 3,
-  },
-  cellInner: {
-    flex: 1,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.bgElevated,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cellToday: {
-    backgroundColor: Colors.green + '1A',
-    borderWidth: 1,
-    borderColor: Colors.green + '55',
-  },
-  cellDay: { fontSize: FontSize.md, color: Colors.textMuted },
-  cellLabel: {
-    fontSize: 7,
-    fontWeight: '700',
-    lineHeight: 9,
-    marginTop: 2,
-  },
-  statRow: { flexDirection: 'row', gap: Spacing.md },
-  statCard: {
-    flex: 1,
-    backgroundColor: Colors.card,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    alignItems: 'center',
-  },
-  statValue: { fontSize: FontSize.xxl, fontWeight: '800' },
-  statLabel: { fontSize: FontSize.sm, color: Colors.textMuted, marginTop: 4, textAlign: 'center' },
-  legend: { backgroundColor: Colors.card, borderRadius: Radius.lg, padding: Spacing.lg, gap: Spacing.sm },
-  legendTitle: {
-    fontSize: FontSize.xs, color: Colors.textFaint,
-    textTransform: 'uppercase', letterSpacing: 1, marginBottom: Spacing.xs,
-  },
-  legendRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  legendDot: { width: 10, height: 10, borderRadius: 3 },
-  legendLabel: { fontSize: FontSize.md, color: Colors.textMuted },
-});

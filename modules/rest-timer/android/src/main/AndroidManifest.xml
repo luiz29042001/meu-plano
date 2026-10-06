@@ -1,0 +1,13 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Tambem declaradas no app.json (android.permissions); o build mescla. -->
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+  <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+  <uses-permission android:name="android.permission.VIBRATE" />
+
+  <application>
+    <!-- Recebe o alarme exato no fim do descanso e publica "Descanso terminado". -->
+    <receiver
+      android:name="expo.modules.resttimer.RestTimerAlarmReceiver"
+      android:exported="false" />
+  </application>
+</manifest>

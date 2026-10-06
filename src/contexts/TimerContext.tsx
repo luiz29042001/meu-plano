@@ -1,20 +1,51 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import React, {
+  createContext, useContext, useState, useEffect, useRef, useCallback, useMemo,
+} from 'react';
 import { Platform, Vibration, AppState } from 'react-native';
 import type { TimerState } from '../types';
+import {
+  loadNotifPromptShown, loadTimerPosition, saveNotifPromptShown, saveTimerPosition,
+  type TimerPosition,
+} from '../services/devicePrefs';
+import {
+  cancelRestNotification, isNativeAlertArmed, requestNotificationPermission, startRestNotification,
+} from '../services/restNotification';
 
-interface TimerContextValue {
-  timerState: TimerState;
-  launchTimer: (label: string, seconds: number, color: string) => void;
-  closeTimer: () => void;
-  toggleTimer: () => void;
-  resetTimer: () => void;
-  setPreset: (seconds: number) => void;
+export type { TimerPosition } from '../services/devicePrefs';
+
+// ─── Contratos ───────────────────────────────────────────────────────────────
+// O contexto é dividido em três para a tela de Treino não re-renderizar a cada
+// segundo: só quem lê `timerState` (o FloatingTimer) acompanha o tick.
+
+/** Ações estáveis (mesma referência durante toda a vida do app). */
+export interface TimerActions {
+  /** `color` = cor CRUA do banco (workout_days.color); o FloatingTimer traduz com dayColor. */
+  launchTimer(label: string, seconds: number, color: string): void;
+  closeTimer(): void;
+  toggleTimer(): void;
+  resetTimer(): void;
+  setPreset(seconds: number): void;
+  /** "+15 s": rodando, empurra o término; pausado/terminado, soma ao tempo parado. */
+  addTime(seconds: number): void;
 }
 
-const TimerContext = createContext<TimerContextValue>({} as TimerContextValue);
+/** Posição e altura do painel. Muda só ao mover, medir, abrir ou fechar. */
+export interface TimerLayout {
+  position: TimerPosition;
+  /** Atualiza na hora e salva no aparelho ('meu-plano:cronometro-posicao'). */
+  setPosition(p: TimerPosition): void;
+  /** Altura medida do painel; 0 quando o cronômetro está fechado. */
+  panelHeight: number;
+  /** Só o FloatingTimer chama (onLayout). */
+  setPanelHeight(h: number): void;
+}
+
+const ActionsContext = createContext<TimerActions | null>(null);
+const StateContext = createContext<TimerState | null>(null);
+const LayoutContext = createContext<TimerLayout | null>(null);
 
 const DEFAULT: TimerState = {
-  visible: false, seconds: 90, total: 90, running: false, label: '', color: '#E8572A',
+  visible: false, seconds: 90, total: 90, running: false, label: '', color: '',
 };
 
 // ─── Áudio ───────────────────────────────────────────────────────────────────
@@ -35,8 +66,14 @@ function unlockAudio() {
 
 function alertFinished() {
   if (Platform.OS !== 'web') {
-    // Android/iOS nativo: vibração como alerta
+    // Android: se a notificação está armada com alarme exato, o próprio
+    // sistema toca e vibra no horário (sem alerta duplicado, critério 35).
+    if (isNativeAlertArmed()) return;
+    // Sem notificação armada: vibração como hoje.
     Vibration.vibrate([0, 400, 200, 400, 200, 600]);
+    // Com o app na frente, o aviso já foi dado: remove a contagem e o aviso
+    // atrasado (alarme inexato) que ainda tocaria depois.
+    if (AppState.currentState === 'active') void cancelRestNotification();
     return;
   }
   try {
@@ -63,29 +100,65 @@ function alertFinished() {
   } catch {}
 }
 
+const remainingFrom = (endsAt: number) => Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
+
 // ─── Provider ────────────────────────────────────────────────────────────────
-// O tempo restante é sempre calculado a partir do horário de término (endsAt).
-// Assim, se o app for para segundo plano e o sistema congelar o intervalo,
-// ao voltar o cronômetro mostra o tempo correto em vez de ficar "atrasado".
+// ARMADILHA 4: o tempo restante é sempre calculado a partir do horário de
+// término (endsAtRef). Se o app for para segundo plano e o sistema congelar o
+// intervalo, ao voltar o cronômetro mostra o tempo correto. A notificação do
+// Android recebe apenas uma CÓPIA do endsAt; nada fora daqui o altera.
 export function TimerProvider({ children }: { children: React.ReactNode }) {
   const [timerState, setTimerState] = useState<TimerState>(DEFAULT);
+  // Espelho síncrono do estado: permite efeitos colaterais (notificação) fora
+  // do updater do setState, sem depender de render.
+  const stateRef = useRef<TimerState>(DEFAULT);
   const endsAtRef = useRef<number | null>(null);
   const firedRef = useRef(false);
+  const notifAskedRef = useRef<boolean | null>(null); // null = ainda não lido
 
+  const commit = useCallback((next: TimerState) => {
+    stateRef.current = next;
+    setTimerState(next);
+  }, []);
+
+  // ─── Notificação (Android; no-op na web) ──────────────────────────────────
+  // Na primeira vez que um descanso começa, pede POST_NOTIFICATIONS (uma vez só).
+  const armNotification = useCallback((endsAt: number, label: string) => {
+    if (Platform.OS !== 'android') return;
+    void (async () => {
+      if (notifAskedRef.current === null) notifAskedRef.current = await loadNotifPromptShown();
+      if (!notifAskedRef.current) {
+        notifAskedRef.current = true;
+        await saveNotifPromptShown();
+        await requestNotificationPermission();
+      }
+      // O descanso pode ter sido pausado/fechado enquanto o diálogo estava aberto.
+      if (endsAtRef.current !== endsAt) return;
+      await startRestNotification({ endsAt, label });
+    })();
+  }, []);
+
+  const disarmNotification = useCallback(() => {
+    if (Platform.OS !== 'android') return;
+    void cancelRestNotification();
+  }, []);
+
+  // ─── Tick ─────────────────────────────────────────────────────────────────
   const tick = useCallback(() => {
     const endsAt = endsAtRef.current;
     if (endsAt === null) return;
-    const remaining = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
-    setTimerState(prev => {
-      if (!prev.running) return prev;
-      if (remaining <= 0) {
-        endsAtRef.current = null;
-        if (!firedRef.current) { firedRef.current = true; alertFinished(); }
-        return { ...prev, seconds: 0, running: false };
-      }
-      return prev.seconds === remaining ? prev : { ...prev, seconds: remaining };
-    });
-  }, []);
+    const prev = stateRef.current;
+    if (!prev.running) return;
+    const remaining = remainingFrom(endsAt);
+    if (remaining <= 0) {
+      endsAtRef.current = null;
+      if (!firedRef.current) { firedRef.current = true; alertFinished(); }
+      // Não cancela a notificação aqui: o alarme nativo pode estar tocando agora.
+      commit({ ...prev, seconds: 0, running: false });
+      return;
+    }
+    if (prev.seconds !== remaining) commit({ ...prev, seconds: remaining });
+  }, [commit]);
 
   useEffect(() => {
     if (!timerState.running) return;
@@ -107,51 +180,152 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     };
   }, [tick]);
 
+  // ─── Ações ────────────────────────────────────────────────────────────────
   const launchTimer = useCallback((label: string, seconds: number, color: string) => {
     unlockAudio();
     firedRef.current = false;
-    endsAtRef.current = Date.now() + seconds * 1000;
-    setTimerState({ visible: true, seconds, total: seconds, running: true, label, color });
-  }, []);
+    const endsAt = Date.now() + seconds * 1000;
+    endsAtRef.current = endsAt;
+    commit({ visible: true, seconds, total: seconds, running: true, label, color: color ?? '' });
+    armNotification(endsAt, label);
+  }, [commit, armNotification]);
 
   const closeTimer = useCallback(() => {
     endsAtRef.current = null;
-    setTimerState(DEFAULT);
-  }, []);
+    commit(DEFAULT);
+    disarmNotification();
+  }, [commit, disarmNotification]);
 
   const toggleTimer = useCallback(() => {
     unlockAudio();
-    setTimerState(prev => {
-      if (prev.seconds === 0) {
-        // Terminado → volta ao total, parado
-        endsAtRef.current = null;
-        return { ...prev, seconds: prev.total, running: false };
-      }
-      if (prev.running) {
-        endsAtRef.current = null; // pausa congelando o tempo restante
-        return { ...prev, running: false };
-      }
-      firedRef.current = false;
-      endsAtRef.current = Date.now() + prev.seconds * 1000;
-      return { ...prev, running: true };
-    });
-  }, []);
+    const prev = stateRef.current;
+    if (prev.seconds === 0) {
+      // Terminado → volta ao total, parado (remove o "Descanso terminado").
+      endsAtRef.current = null;
+      commit({ ...prev, seconds: prev.total, running: false });
+      disarmNotification();
+      return;
+    }
+    if (prev.running) {
+      // Pausa congelando o tempo restante.
+      const endsAt = endsAtRef.current;
+      const seconds = endsAt === null ? prev.seconds : Math.max(1, remainingFrom(endsAt));
+      endsAtRef.current = null;
+      commit({ ...prev, seconds, running: false });
+      disarmNotification();
+      return;
+    }
+    firedRef.current = false;
+    const endsAt = Date.now() + prev.seconds * 1000;
+    endsAtRef.current = endsAt;
+    commit({ ...prev, running: true });
+    armNotification(endsAt, prev.label);
+  }, [commit, armNotification, disarmNotification]);
 
   const resetTimer = useCallback(() => {
     endsAtRef.current = null;
-    setTimerState(prev => ({ ...prev, seconds: prev.total, running: false }));
-  }, []);
+    const prev = stateRef.current;
+    commit({ ...prev, seconds: prev.total, running: false });
+    disarmNotification();
+  }, [commit, disarmNotification]);
 
   const setPreset = useCallback((seconds: number) => {
     endsAtRef.current = null;
-    setTimerState(prev => ({ ...prev, seconds, total: seconds, running: false }));
+    const prev = stateRef.current;
+    commit({ ...prev, seconds, total: seconds, running: false });
+    disarmNotification();
+  }, [commit, disarmNotification]);
+
+  const addTime = useCallback((seconds: number) => {
+    if (!(seconds > 0)) return;
+    const prev = stateRef.current;
+    if (!prev.visible) return;
+    if (prev.running && endsAtRef.current !== null) {
+      const endsAt = endsAtRef.current + seconds * 1000;
+      endsAtRef.current = endsAt;
+      const remaining = remainingFrom(endsAt);
+      commit({ ...prev, seconds: remaining, total: Math.max(prev.total + seconds, remaining) });
+      armNotification(endsAt, prev.label); // reagenda o aviso e atualiza a contagem
+      return;
+    }
+    // Pausado ou terminado: soma ao tempo parado (não inicia sozinho).
+    firedRef.current = false;
+    const next = prev.seconds + seconds;
+    commit({ ...prev, seconds: next, total: Math.max(prev.total, next), running: false });
+    if (prev.seconds === 0) disarmNotification(); // tira o "Descanso terminado"
+  }, [commit, armNotification, disarmNotification]);
+
+  const actions = useMemo<TimerActions>(() => ({
+    launchTimer, closeTimer, toggleTimer, resetTimer, setPreset, addTime,
+  }), [launchTimer, closeTimer, toggleTimer, resetTimer, setPreset, addTime]);
+
+  // ─── Layout (posição salva no aparelho + altura medida) ────────────────────
+  const [position, setPositionState] = useState<TimerPosition>('bottom');
+  const [measuredHeight, setMeasuredHeight] = useState(0);
+  const positionTouchedRef = useRef(false);
+
+  useEffect(() => {
+    let alive = true;
+    loadTimerPosition().then(p => {
+      // Se o usuário já moveu antes da leitura terminar, vale a escolha dele.
+      if (alive && !positionTouchedRef.current) setPositionState(p);
+    });
+    return () => { alive = false; };
   }, []);
 
+  const setPosition = useCallback((p: TimerPosition) => {
+    positionTouchedRef.current = true;
+    setPositionState(p);
+    void saveTimerPosition(p);
+  }, []);
+
+  const setPanelHeight = useCallback((h: number) => {
+    const rounded = Math.max(0, Math.round(h));
+    setMeasuredHeight(prev => (prev === rounded ? prev : rounded));
+  }, []);
+
+  const visible = timerState.visible;
+  const layout = useMemo<TimerLayout>(() => ({
+    position,
+    setPosition,
+    panelHeight: visible ? measuredHeight : 0,
+    setPanelHeight,
+  }), [position, setPosition, visible, measuredHeight, setPanelHeight]);
+
   return (
-    <TimerContext.Provider value={{ timerState, launchTimer, closeTimer, toggleTimer, resetTimer, setPreset }}>
-      {children}
-    </TimerContext.Provider>
+    <ActionsContext.Provider value={actions}>
+      <LayoutContext.Provider value={layout}>
+        <StateContext.Provider value={timerState}>
+          {children}
+        </StateContext.Provider>
+      </LayoutContext.Provider>
+    </ActionsContext.Provider>
   );
 }
 
-export const useTimer = () => useContext(TimerContext);
+function required<T>(value: T | null, hook: string): T {
+  if (value === null) throw new Error(`${hook} precisa estar dentro de <TimerProvider>`);
+  return value;
+}
+
+/** Só as ações. Não re-renderiza com o tick (use na tela de Treino). */
+export function useTimerActions(): TimerActions {
+  return required(useContext(ActionsContext), 'useTimerActions');
+}
+
+/** Posição e altura do painel (para a tela reservar espaço em cima ou embaixo). */
+export function useTimerLayout(): TimerLayout {
+  return required(useContext(LayoutContext), 'useTimerLayout');
+}
+
+/** Estado do cronômetro (re-renderiza a cada segundo enquanto corre). */
+export function useTimerState(): TimerState {
+  return required(useContext(StateContext), 'useTimerState');
+}
+
+/** Compatível com o uso anterior: ações + estado (re-renderiza a cada segundo). */
+export function useTimer(): TimerActions & { timerState: TimerState } {
+  const actions = useTimerActions();
+  const timerState = useTimerState();
+  return useMemo(() => ({ ...actions, timerState }), [actions, timerState]);
+}

@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Auditoria de design</title>
+<style>
+  /* Valores reais de src/utils/theme.ts */
+  :root {
+    --bg: #1A1A1C;
+    --bgElevated: #212124;
+    --card: #26262A;
+    --cardHover: #2E2E33;
+    --cardAlt: #212124;
+    --surface: #33333A;
+    --border: #3A3A40;
+    --text: #F2F2F4;
+    --textMuted: #A8A8B0;
+    --textFaint: #7A7A82;
+    --green: #1DB954;
+    --greenDim: #1AA34A;
+    --pushColor: #E07856;
+    --pullColor: #5A93D4;
+    --legsColor: #42B968;
+    --restColor: #8E8E96;
+    --orange: #E8A94A;
+    --red: #E0525E;
+    --purple: #A878D4;
+    --suppColor: #E0A85A;
+
+    --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-xl: 20px; --r-xxl: 24px; --r-pill: 500px;
+    --s-xs: 4px; --s-sm: 8px; --s-md: 12px; --s-lg: 16px; --s-xl: 20px; --s-xxl: 24px;
+    --f-xs: 11px; --f-sm: 12px; --f-md: 13px; --f-base: 15px; --f-lg: 17px; --f-xl: 22px; --f-xxl: 26px; --f-xxxl: 32px;
+
+    /* Tokens novos propostos (ver auditoria-2026-10-05.md) */
+    --onAccent: #1A1A1C;
+    --f-display: 40px;
+    --touch: 44px;
+
+    /* Cores provavelmente gravadas hoje no banco para o Luiz (schema.sql) — só no "Hoje" */
+    --old-push: #E8572A;
+    --old-pull: #2A7BE8;
+    --old-legs: #27AE60;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: var(--f-base);
+    line-height: 1.45;
+    padding: 0 16px 80px;
+  }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ---------- Documento (texto para o Luiz) ---------- */
+  .doc { max-width: 880px; margin: 0 auto; }
+  .intro { padding: 40px 0 8px; max-width: 620px; }
+  .intro h1 { font-size: var(--f-xxxl); font-weight: 800; letter-spacing: -0.5px; line-height: 1.1; }
+  .intro p { color: var(--textMuted); margin-top: var(--s-md); }
+  .legend-row { display: flex; flex-wrap: wrap; gap: var(--s-lg); margin-top: var(--s-lg); font-size: var(--f-md); color: var(--textMuted); }
+  .tag { display: inline-flex; align-items: center; gap: 6px; }
+  .tag i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+  section.screen { margin-top: 56px; }
+  section.screen > h2 { font-size: var(--f-xl); font-weight: 800; letter-spacing: -0.3px; }
+  section.screen > .lede { color: var(--textMuted); margin-top: 6px; max-width: 620px; }
+  .changes { margin-top: var(--s-lg); max-width: 640px; display: grid; gap: 10px; }
+  .changes li { list-style: none; display: grid; grid-template-columns: 28px 1fr; gap: 6px; color: var(--text); }
+  .changes li b.n { color: var(--textFaint); font-weight: 700; font-size: var(--f-md); padding-top: 1px; }
+  .changes li span em { font-style: normal; color: var(--textMuted); }
+
+  .compare {
+    margin-top: var(--s-xxl);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 390px), 1fr));
+    gap: 32px 24px;
+    justify-items: center;
+  }
+  .col { width: 100%; max-width: 390px; }
+  .col-head { display: flex; align-items: baseline; gap: var(--s-sm); margin-bottom: 10px; }
+  .col-head strong { font-size: var(--f-lg); }
+  .col-head small { color: var(--textFaint); font-size: var(--f-sm); }
+  .col-head .pill { font-size: var(--f-sm); font-weight: 700; padding: 3px 10px; border-radius: var(--r-pill); }
+  .pill.now { background: var(--surface); color: var(--textMuted); }
+  .pill.new { background: rgba(29,185,84,.16); color: var(--green); }
+
+  /* ---------- Moldura do celular ---------- */
+  .phone {
+    width: 100%;
+    max-width: 390px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 28px;
+    overflow: hidden;
+    position: relative;
+  }
+  .phone.tall { height: 820px; }
+  .statusbar { height: 28px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; font-size: var(--f-sm); color: var(--textMuted); font-weight: 600; }
+  .statusbar.old { background: #0F0F0F; }
+  .statusbar.new { background: var(--bg); }
+  .screen-body { padding: var(--s-xl); display: flex; flex-direction: column; gap: var(--s-lg); }
+  .screen-body.tight { padding: 0 var(--s-lg) var(--s-lg); gap: var(--s-sm); }
+
+  /* ---------- Componentes do app (reconstruídos) ---------- */
+  .row { display: flex; align-items: center; }
+  .between { justify-content: space-between; }
+  .muted { color: var(--textMuted); }
+  .faint { color: var(--textFaint); }
+  .caps { text-transform: uppercase; letter-spacing: 1px; font-size: var(--f-xs); color: var(--textFaint); }
+  .card { background: var(--card); border-radius: var(--r-lg); }
+
+  /* Home — hoje */
+  .h-greet { font-size: var(--f-md); color: var(--textMuted); }
+  .h-name { font-size: var(--f-xxl); font-weight: 800; letter-spacing: -0.5px; }
+  .avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--card); display: grid; place-items: center; font-weight: 700; font-size: var(--f-lg); }
+  .next-old { background: var(--card); border-radius: var(--r-xl); display: flex; align-items: center; overflow: hidden; }
+  .next-old .bar { width: 4px; align-self: stretch; }
+  .next-old .c { flex: 1; padding: var(--s-xl); }
+  .next-old .t { font-size: var(--f-xl); font-weight: 800; letter-spacing: -0.5px; margin-top: 6px; }
+  .play { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; margin-right: var(--s-xl); color: #000; font-size: 18px; padding-left: 3px; }
+  .stats-old { display: flex; gap: var(--s-md); }
+  .stats-old > div { flex: 1; background: var(--card); border-radius: var(--r-lg); padding: var(--s-lg); text-align: center; }
+  .stats-old b { font-size: var(--f-xxl); font-weight: 800; display: block; }
+  .stats-old span { font-size: var(--f-sm); color: var(--textMuted); }
+  .navrow { display: flex; align-items: center; gap: var(--s-lg); background: var(--card); border-radius: var(--r-lg); padding: var(--s-lg); }
+  .navicon { width: 52px; height: 52px; border-radius: var(--r-md); display: grid; place-items: center; font-size: 26px; flex-shrink: 0; }
+  .navrow .t { font-size: var(--f-lg); font-weight: 700; }
+  .navrow .s { font-size: var(--f-md); color: var(--textMuted); }
+  .chev { margin-left: auto; color: var(--textFaint); font-size: 22px; }
+
+  /* Home — proposto */
+  .hero { background: var(--card); border-radius: var(--r-xl); padding: var(--s-xl); position: relative; overflow: hidden; }
+  .hero::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--pushColor); }
+  .hero .label { font-size: var(--f-md); color: var(--textMuted); }
+  .hero .day { font-size: var(--f-xxxl); font-weight: 800; letter-spacing: -0.8px; color: var(--pushColor); line-height: 1.1; margin-top: 2px; }
+  .hero .mus { font-size: var(--f-base); color: var(--textMuted); margin-top: 2px; }
+  .figures { display: flex; gap: var(--s-xxl); margin-top: var(--s-lg); }
+  .figures b { display: block; font-size: var(--f-xl); font-weight: 800; line-height: 1.1; }
+  .figures span { font-size: var(--f-sm); color: var(--textMuted); }
+  .btn-main { height: 52px; border-radius: var(--r-pill); background: var(--green); color: var(--onAccent); font-weight: 700; font-size: var(--f-base); display: grid; place-items: center; margin-top: var(--s-xl); border: 0; width: 100%; font-family: inherit; }
+  .hero .last { font-size: var(--f-sm); color: var(--textFaint); margin-top: var(--s-md); text-align: center; }
+  .tally { display: flex; gap: var(--s-xxl); padding: 0 var(--s-xs); }
+  .tally b { font-size: var(--f-xxl); font-weight: 800; display: block; line-height: 1.1; }
+  .tally span { font-size: var(--f-sm); color: var(--textMuted); }
+  .list { background: var(--card); border-radius: var(--r-lg); }
+  .list a { display: flex; align-items: center; min-height: 64px; padding: 0 var(--s-lg); color: inherit; text-decoration: none; }
+  .list a + a { border-top: 1px solid var(--border); }
+  .list .t { font-size: var(--f-base); font-weight: 700; }
+  .list .s { font-size: var(--f-md); color: var(--textMuted); }
+
+  /* Treino — comum */
+  .w-head { display: flex; align-items: center; gap: var(--s-md); padding: var(--s-sm) var(--s-xl); }
+  .round { border-radius: 50%; background: var(--card); display: grid; place-items: center; flex-shrink: 0; font-size: 22px; }
+  .w-head .t { font-size: var(--f-xl); font-weight: 700; line-height: 1.15; }
+  .tabs { display: flex; gap: var(--s-sm); padding: var(--s-sm) var(--s-lg); overflow: hidden; white-space: nowrap; }
+  .tab { border-radius: var(--r-pill); background: var(--card); padding: 0 20px; display: flex; align-items: center; gap: 6px; font-size: var(--f-sm); font-weight: 700; color: var(--textMuted); flex-shrink: 0; }
+  .tab .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .daycard { background: var(--card); border-radius: var(--r-xl); display: flex; overflow: hidden; }
+  .daycard .bar { width: 4px; }
+  .daycard .c { flex: 1; padding: var(--s-xl); }
+  .daycard .lbl { font-size: var(--f-xl); font-weight: 800; letter-spacing: -0.5px; }
+  .progress { height: 4px; background: var(--surface); border-radius: 2px; margin-top: var(--s-lg); overflow: hidden; }
+  .progress i { display: block; height: 100%; border-radius: 2px; }
+
+  /* Treino — hoje */
+  .ex-old { background: var(--card); border-radius: var(--r-lg); display: flex; align-items: center; gap: var(--s-md); padding: var(--s-lg); }
+  .ex-old.done { background: var(--bgElevated); }
+  .chk-old { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--surface); flex-shrink: 0; margin: 2px; }
+  .chk-old.on { border: 0; background: var(--green); color: #000; font-size: 13px; font-weight: 700; display: grid; place-items: center; }
+  .ex-old .name { font-size: var(--f-base); font-weight: 600; line-height: 19px; }
+  .ex-old.done .name { color: var(--textFaint); text-decoration: line-through; }
+  .meta-old { display: flex; gap: var(--s-md); font-size: var(--f-sm); margin-top: 4px; flex-wrap: wrap; }
+  .icons-old { display: flex; gap: 2px; color: var(--textMuted); font-size: 16px; }
+  .icons-old span { padding: 8px 6px; }
+  .note-old { font-size: var(--f-sm); color: var(--textMuted); margin-top: 6px; }
+  .complete-old { border-radius: var(--r-pill); background: var(--surface); color: var(--textFaint); padding: var(--s-lg); text-align: center; font-weight: 700; margin-top: var(--s-sm); }
+
+  /* Treino — proposto */
+  .ex { background: var(--card); border-radius: var(--r-lg); }
+  .ex.done { background: var(--bgElevated); }
+  .ex-main { display: flex; gap: var(--s-sm); padding: var(--s-md) var(--s-md) var(--s-sm) var(--s-xs); align-items: flex-start; }
+  .chk { width: var(--touch); height: var(--touch); display: grid; place-items: center; flex-shrink: 0; }
+  .chk i { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--border); display: grid; place-items: center; font-style: normal; }
+  .chk.on i { background: var(--green); border: 0; color: var(--onAccent); font-weight: 800; font-size: 15px; }
+  .ex .info { flex: 1; min-width: 0; padding-top: 2px; }
+  .ex .name { font-size: var(--f-base); font-weight: 600; line-height: 1.3; }
+  .ex.done .name { color: var(--textMuted); }
+  .big { display: flex; align-items: baseline; gap: 6px; margin-top: 4px; }
+  .big b { font-size: var(--f-xl); font-weight: 800; letter-spacing: -0.3px; line-height: 1.1; }
+  .big .x { color: var(--textFaint); font-size: var(--f-base); font-weight: 600; }
+  .big small { font-size: var(--f-xs); color: var(--textMuted); margin-left: 4px; }
+  .ex.done .big b { color: var(--textMuted); }
+  .noteline { font-size: var(--f-md); color: var(--textMuted); margin-top: 6px; }
+  .noteline b { color: var(--text); font-weight: 600; }
+  .rest { min-width: 64px; height: var(--touch); border-radius: var(--r-pill); display: grid; place-items: center; font-weight: 800; font-size: var(--f-base); flex-shrink: 0; margin-top: 2px; }
+  .rest small { display: block; font-size: var(--f-xs); font-weight: 600; margin-top: -3px; opacity: .85; }
+  .ex-actions { display: flex; border-top: 1px solid var(--border); }
+  .ex-actions span { flex: 1; height: var(--touch); display: grid; place-items: center; font-size: var(--f-md); font-weight: 600; color: var(--textMuted); }
+  .ex-actions span + span { border-left: 1px solid var(--border); }
+  .complete { height: 52px; border-radius: var(--r-pill); background: var(--surface); color: var(--text); font-weight: 700; display: grid; place-items: center; margin-top: var(--s-sm); }
+  .complete-hint { text-align: center; font-size: var(--f-sm); color: var(--textMuted); margin-top: var(--s-sm); }
+
+  /* Cronômetro — hoje */
+  .timer-old {
+    position: absolute; left: 16px; right: 16px; bottom: 90px;
+    background: #18181B; border-radius: var(--r-xxl); border: 1.5px solid rgba(232,87,42,.33);
+    padding: 14px; box-shadow: 0 8px 16px rgba(0,0,0,.5);
+  }
+  .timer-old .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 8px; }
+  .timer-old .lab { font-size: var(--f-sm); color: var(--textMuted); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+  .presets-old { display: flex; gap: 4px; }
+  .presets-old span { background: var(--surface); border-radius: 6px; padding: 3px 6px; font-size: 9px; font-weight: 700; color: var(--textFaint); }
+  .presets-old span.on { background: rgba(232,87,42,.2); color: var(--old-push); }
+  .timer-old .main { display: flex; align-items: center; gap: 14px; }
+  .ring { position: relative; flex-shrink: 0; }
+  .ring svg { display: block; transform: rotate(-90deg); }
+  .ring .center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+  .btn-old { flex: 1; padding: 11px; border-radius: var(--r-md); text-align: center; font-size: var(--f-md); font-weight: 700; }
+
+  /* Cronômetro — proposto */
+  .timer {
+    position: absolute; left: 12px; right: 12px; bottom: 16px;
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--r-xxl);
+    padding: var(--s-xs) var(--s-xs) var(--s-sm) var(--s-lg);
+  }
+  .timer .top { display: flex; align-items: center; justify-content: space-between; }
+  .timer .lab { font-size: var(--f-md); color: var(--textMuted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .closebtn { width: var(--touch); height: var(--touch); display: grid; place-items: center; color: var(--textMuted); font-size: var(--f-lg); flex-shrink: 0; }
+  .timer .main { display: flex; align-items: center; gap: var(--s-lg); padding-right: var(--s-md); }
+  .timer .time { font-size: var(--f-display); font-weight: 800; letter-spacing: -1px; line-height: 1; }
+  .timer .controls { flex: 1; display: grid; gap: var(--s-sm); }
+  .btn-pause { height: 52px; border-radius: var(--r-pill); display: grid; place-items: center; font-weight: 700; font-size: var(--f-base); background: var(--surface); color: var(--text); }
+  .btn-ghost { height: var(--touch); display: grid; place-items: center; font-weight: 600; font-size: var(--f-md); color: var(--textMuted); }
+  .presets { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: var(--s-md); padding-right: var(--s-md); }
+  .presets span { height: var(--touch); border-radius: var(--r-md); background: var(--surface); display: grid; place-items: center; font-size: var(--f-md); font-weight: 700; color: var(--textMuted); }
+  .presets span.on { background: rgba(224,120,86,.18); color: var(--pushColor); }
+
+  .dimlist { padding: var(--s-lg); display: grid; gap: var(--s-sm); opacity: .55; }
+  .dimlist div { height: 76px; background: var(--card); border-radius: var(--r-lg); }
+
+  /* Estados */
+  .state { text-align: center; padding: 56px var(--s-xxl) 40px; }
+  .state .t { font-size: var(--f-lg); font-weight: 700; }
+  .state p { color: var(--textMuted); margin-top: 6px; }
+  .state .btn { display: inline-grid; place-items: center; height: var(--touch); padding: 0 var(--s-xxl); border-radius: var(--r-pill); background: var(--surface); color: var(--text); font-weight: 700; margin-top: var(--s-xl); }
+  .spinner { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--surface); border-top-color: var(--textMuted); margin: 120px auto; }
+
+  /* Cores dos dias */
+  .swatches { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-sm); }
+  .sw { border-radius: var(--r-md); padding: var(--s-md); font-weight: 800; font-size: var(--f-md); color: var(--onAccent); height: 64px; display: flex; align-items: flex-end; }
+
+  /* Decisões */
+  .decisions { margin-top: var(--s-xl); display: grid; gap: 2px; max-width: 680px; background: var(--border); border-radius: var(--r-lg); overflow: hidden; }
+  .decisions div { background: var(--card); padding: var(--s-lg); display: grid; grid-template-columns: 40px 1fr; gap: var(--s-sm); }
+  .decisions b.code { color: var(--textFaint); font-size: var(--f-md); }
+  .decisions p { color: var(--textMuted); font-size: var(--f-md); margin-top: 2px; }
+
+  .foot { margin-top: 56px; color: var(--textFaint); font-size: var(--f-sm); max-width: 620px; }
+
+  @media (max-width: 430px) {
+    body { padding: 0 16px 64px; }
+    .intro h1 { font-size: var(--f-xxl); }
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <header class="intro">
+    <h1>Auditoria de design do Meu Plano</h1>
+    <p>Revisão das telas que já existem, feita a partir do código (05/10/2026). Em cada tela, à esquerda está como ela é hoje e à direita como ela ficaria. As cores e tamanhos são os do app de verdade.</p>
+    <p>Algumas coisas são <strong>correções</strong>: o app voltando a seguir as próprias regras. Outras são <strong>propostas novas</strong>, que só entram se você aprovar. A lista para decidir está no fim da página.</p>
+    <div class="legend-row">
+      <span class="tag"><span class="pill now" style="font-size:12px;padding:2px 8px;border-radius:500px">Hoje</span> reconstruído do código</span>
+      <span class="tag"><span class="pill new" style="font-size:12px;padding:2px 8px;border-radius:500px">Proposto</span> o que muda</span>
+    </div>
+  </header>
+
+  <!-- ==================== HOME ==================== -->
+  <section class="screen">
+    <h2>Tela inicial</h2>
+    <p class="lede">O card "Próximo treino" já é a melhor parte do app. A proposta é fazer dele, sem dúvida, a primeira coisa que o olho vê.</p>
+    <ol class="changes">
+      <li><b class="n">1</b><span>O treino ganha do nome. "PUSH A" sobe para 32 e mostra os números do dia: <em>5 exercícios, 16 séries.</em></span></li>
+      <li><b class="n">2</b><span>Um botão verde, largo e com nome: "Começar treino". O verde fica só para isso.</span></li>
+      <li><b class="n">3</b><span>Os números do histórico viram uma linha simples, sem caixas.</span></li>
+      <li><b class="n">4</b><span>"Explorar" perde os emojis em quadrados coloridos. As cores ficam reservadas aos dias de treino.</span></li>
+      <li><b class="n">5</b><span>A bolinha com a inicial deixa de sair da conta com um toque. Ela passa a abrir o perfil, com a opção "Sair" confirmada.</span></li>
+      <li><b class="n">6</b><span>No Android, a faixa do relógio no topo fica da cor do fundo, sem a faixa quase preta.</span></li>
+    </ol>
+
+    <div class="compare">
+      <div class="col">
+        <div class="col-head"><span class="pill now">Hoje</span><small>HomeScreen.tsx</small></div>
+        <div class="phone">
+          <div class="statusbar old"><span class="num">9:41</span><span>▮▮ 82%</span></div>
+          <div class="screen-body">
+            <div class="row between">
+              <div><div class="h-greet">Bom dia</div><div class="h-name">Luiz</div></div>
+              <div class="avatar" style="color:var(--green)">L</div>
+            </div>
+            <div class="next-old">
+              <div class="bar" style="background:var(--old-push)"></div>
+              <div class="c">
+                <div class="caps">Próximo treino</div>
+                <div class="t" style="color:var(--old-push)">PUSH A</div>
+                <div class="muted" style="font-size:13px;margin-top:3px">Peito · Ombro · Tríceps</div>
+                <div class="faint" style="font-size:12px;margin-top:8px">Último: LEGS B</div>
+              </div>
+              <div class="play" style="background:var(--old-push)">▶</div>
+            </div>
+            <div class="stats-old">
+              <div><b class="num" style="color:var(--green)">128</b><span>Treinos no total</span></div>
+              <div><b style="color:var(--textMuted)">—</b><span>Sem treino hoje</span></div>
+            </div>
+            <div style="font-size:17px;font-weight:700;margin-bottom:-4px">Explorar</div>
+            <div class="navrow"><div class="navicon" style="background:rgba(224,120,86,.15)">💪</div><div><div class="t">Treinos</div><div class="s">Push · Pull · Legs · 6 treinos por semana</div></div><span class="chev">›</span></div>
+            <div class="navrow"><div class="navicon" style="background:rgba(29,185,84,.15)">🥗</div><div><div class="t">Dieta</div><div class="s">Dietas A e B · déficit calórico</div></div><span class="chev">›</span></div>
+            <div class="navrow"><div class="navicon" style="background:rgba(90,147,212,.15)">📅</div><div><div class="t">Calendário</div><div class="s">Histórico completo de treinos</div></div><span class="chev">›</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="col-head"><span class="pill new">Proposto</span><small>B3 · A1 · A5</small></div>
+        <div class="phone">
+          <div class="statusbar new"><span class="num">9:41</span><span>▮▮ 82%</span></div>
+          <div class="screen-body" style="gap:var(--s-xl)">
+            <div class="row between">
+              <div style="font-size:var(--f-base);color:var(--textMuted)">Bom dia, <span style="color:var(--text);font-weight:700">Luiz</span></div>
+              <div class="avatar" style="color:var(--textMuted)" aria-label="Perfil">L</div>
+            </div>
+            <div class="hero">
+              <div class="label">Próximo treino</div>
+              <div class="day">PUSH A</div>
+              <div class="mus">Peito · Ombro · Tríceps</div>
+              <div class="figures num">
+                <div><b>5</b><span>exercícios</span></div>
+                <div><b>16</b><span>séries</span></div>
+              </div>
+              <button class="btn-main" type="button">Começar treino</button>
+              <div class="last">Último treino: LEGS B, ontem</div>
+            </div>
+            <div class="tally num">
+              <div><b>128</b><span>treinos no total</span></div>
+              <div><b>14</b><span>em outubro</span></div>
+            </div>
+            <div class="list">
+              <a><div><div class="t">Treinos</div><div class="s">Push · Pull · Legs · 6 por semana</div></div><span class="chev">›</span></a>
+              <a><div><div class="t">Dieta</div><div class="s">Dietas A e B · déficit calórico</div></div><span class="chev">›</span></a>
+              <a><div><div class="t">Calendário</div><div class="s">14 treinos em outubro</div></div><span class="chev">›</span></a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== TREINO ==================== -->
+  <section class="screen">
+    <h2>Treino do dia</h2>
+    <p class="lede">É a tela usada no meio da série, com o celular no banco. Hoje o que mais importa (séries, repetições, descanso) tem 12 pixels, e o círculo de "feito" é o menor botão da tela.</p>
+    <ol class="changes">
+      <li><b class="n">1</b><span>"4 × 8–10" em letra grande. O nome do exercício fica em cima, menor.</span></li>
+      <li><b class="n">2</b><span>O descanso vira o próprio botão do cronômetro: toque em "90s" e ele começa. Sai o ícone de relógio repetido.</span></li>
+      <li><b class="n">3</b><span>A sua anotação (a carga) aparece inteira, logo abaixo dos números, sem o emoji.</span></li>
+      <li><b class="n">4</b><span>"Anotar carga" e "Como fazer" viram botões com nome, em vez de ✎ e ⓘ.</span></li>
+      <li><b class="n">5</b><span>Todos os toques com pelo menos 44 pixels: círculo, abas, voltar.</span></li>
+      <li><b class="n">6</b><span>Dá para concluir o treino mesmo pulando um exercício, com confirmação.</span></li>
+    </ol>
+
+    <div class="compare">
+      <div class="col">
+        <div class="col-head"><span class="pill now">Hoje</span><small>com o cronômetro aberto</small></div>
+        <div class="phone tall">
+          <div class="statusbar old"><span class="num">6:14</span><span>▮▮ 64%</span></div>
+          <div class="w-head">
+            <div class="round" style="width:40px;height:40px">‹</div>
+            <div><div class="caps">Push · Pull · Legs</div><div class="t">Treinos</div></div>
+            <div class="round" style="width:40px;height:40px;margin-left:auto;font-size:18px">📅</div>
+          </div>
+          <div class="tabs">
+            <div class="tab" style="height:40px;background:var(--old-push);color:#000">PUSH A</div>
+            <div class="tab" style="height:40px">PULL A</div>
+            <div class="tab" style="height:40px">LEGS A</div>
+            <div class="tab" style="height:40px">PUSH B</div>
+          </div>
+          <div class="screen-body tight">
+            <div class="daycard">
+              <div class="bar" style="background:var(--old-push)"></div>
+              <div class="c">
+                <div class="row between" style="align-items:flex-start">
+                  <div><div class="lbl" style="color:var(--old-push)">PUSH A</div><div class="muted" style="font-size:13px;margin-top:3px">Peito · Ombro · Tríceps</div></div>
+                  <div style="text-align:right"><div class="num" style="font-size:26px;font-weight:800">2/5</div><div class="faint" style="font-size:11px">exercícios</div></div>
+                </div>
+                <div class="progress"><i style="width:40%;background:var(--old-push)"></i></div>
+              </div>
+            </div>
+            <div class="ex-old done">
+              <div class="chk-old on">✓</div>
+              <div style="flex:1"><div class="name">Supino Inclinado com Halteres</div>
+                <div class="meta-old"><span style="color:var(--old-push);font-weight:700">4 séries</span><span class="muted">8–10 reps</span><span class="faint">⏱ 90s</span></div></div>
+              <div class="icons-old"><span>⏱</span><span>✎</span><span>ⓘ</span></div>
+            </div>
+            <div class="ex-old done">
+              <div class="chk-old on">✓</div>
+              <div style="flex:1"><div class="name">Desenvolvimento com Halteres</div>
+                <div class="meta-old"><span style="color:var(--old-push);font-weight:700">3 séries</span><span class="muted">10–12 reps</span><span class="faint">⏱ 75s</span></div></div>
+              <div class="icons-old"><span>⏱</span><span>✎</span><span>ⓘ</span></div>
+            </div>
+            <div class="ex-old">
+              <div class="chk-old"></div>
+              <div style="flex:1"><div class="name">Crucifixo na Polia (cabo cruzado)</div>
+                <div class="meta-old"><span style="color:var(--old-push);font-weight:700">3 séries</span><span class="muted">12–15 reps</span><span class="faint">⏱ 60s</span></div>
+                <div class="note-old">📝 15 kg cada lado · subir na próxima</div></div>
+              <div class="icons-old"><span>⏱</span><span style="color:var(--old-push)">✎</span><span>ⓘ</span></div>
+            </div>
+            <div class="ex-old">
+              <div class="chk-old"></div>
+              <div style="flex:1"><div class="name">Elevação Lateral com Halteres</div>
+                <div class="meta-old"><span style="color:var(--old-push);font-weight:700">3 séries</span><span class="muted">15–20 reps</span><span class="faint">⏱ 60s</span></div></div>
+              <div class="icons-old"><span>⏱</span><span>✎</span><span>ⓘ</span></div>
+            </div>
+            <div class="ex-old">
+              <div class="chk-old"></div>
+              <div style="flex:1"><div class="name">Tríceps Pulley (corda)</div>
+                <div class="meta-old"><span style="color:var(--old-push);font-weight:700">3 séries</span><span class="muted">12–15 reps</span><span class="faint">⏱ 60s</span></div></div>
+              <div class="icons-old"><span>⏱</span><span>✎</span><span>ⓘ</span></div>
+            </div>
+            <div class="complete-old">Conclua os exercícios (2/5)</div>
+          </div>
+
+          <div class="timer-old">
+            <div class="top">
+              <div class="lab">Crucifixo na Polia (cabo cruzado)</div>
+              <div class="presets-old"><span>30s</span><span class="on">60s</span><span>75s</span><span>90s</span><span>120s</span><span style="font-size:12px;padding:3px 8px">✕</span></div>
+            </div>
+            <div class="main">
+              <div class="ring">
+                <svg width="84" height="84"><circle cx="42" cy="42" r="36" fill="none" stroke="#33333A" stroke-width="6"/><circle cx="42" cy="42" r="36" fill="none" stroke="#E8572A" stroke-width="6" stroke-linecap="round" stroke-dasharray="226.2" stroke-dashoffset="90"/></svg>
+                <div class="center"><div class="num" style="font-size:20px;font-weight:800;line-height:22px">0:36</div><div class="faint" style="font-size:8px">restante</div></div>
+              </div>
+              <div style="flex:1;display:flex;gap:8px">
+                <div class="btn-old" style="background:var(--surface);color:var(--text)">⏸ Pausar</div>
+                <div class="btn-old" style="flex:0;padding:11px 14px;background:var(--surface);color:var(--textMuted)">↺</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="faint" style="font-size:12px;margin-top:8px">Com o cronômetro aberto, o botão de concluir fica escondido atrás dele (inferência pelas medidas do código).</p>
+      </div>
+
+      <div class="col">
+        <div class="col-head"><span class="pill new">Proposto</span><small>B1 · B2 · B5 · A3</small></div>
+        <div class="phone" style="padding-bottom:16px">
+          <div class="statusbar new"><span class="num">6:14</span><span>▮▮ 64%</span></div>
+          <div class="w-head" style="padding-left:var(--s-lg)">
+            <div class="round" style="width:44px;height:44px" aria-label="Voltar">‹</div>
+            <div><div class="muted" style="font-size:12px">Push · Pull · Legs</div><div class="t">Treinos</div></div>
+            <div class="round" style="width:44px;height:44px;margin-left:auto;font-size:18px" aria-label="Calendário">📅</div>
+          </div>
+          <div class="tabs">
+            <div class="tab" style="height:44px;background:var(--pushColor);color:var(--onAccent)">PUSH A</div>
+            <div class="tab" style="height:44px">PULL A</div>
+            <div class="tab" style="height:44px">LEGS A</div>
+            <div class="tab" style="height:44px">PUSH B</div>
+          </div>
+          <div class="screen-body tight">
+            <div class="daycard">
+              <div class="bar" style="background:var(--pushColor)"></div>
+              <div class="c" style="padding:var(--s-lg) var(--s-xl)">
+                <div class="row between">
+                  <div><div class="lbl" style="color:var(--pushColor)">PUSH A</div><div class="muted" style="font-size:13px">Peito · Ombro · Tríceps</div></div>
+                  <div class="num" style="text-align:right"><span style="font-size:32px;font-weight:800">2</span><span class="muted" style="font-size:17px;font-weight:700"> de 5</span></div>
+                </div>
+                <div class="progress" style="margin-top:var(--s-md)"><i style="width:40%;background:var(--pushColor)"></i></div>
+              </div>
+            </div>
+
+            <div class="ex done">
+              <div class="ex-main">
+                <div class="chk on" aria-label="Desmarcar Supino Inclinado"><i>✓</i></div>
+                <div class="info">
+                  <div class="name">Supino Inclinado com Halteres</div>
+                  <div class="big num"><b>4</b><span class="x">×</span><b>8–10</b></div>
+                  <div class="noteline">22 kg por lado</div>
+                </div>
+                <div class="rest num" style="background:var(--surface);color:var(--textMuted)">90s</div>
+              </div>
+            </div>
+
+            <div class="ex">
+              <div class="ex-main">
+                <div class="chk" aria-label="Marcar Crucifixo na Polia como feito"><i></i></div>
+                <div class="info">
+                  <div class="name">Crucifixo na Polia (cabo cruzado)</div>
+                  <div class="big num"><b>3</b><span class="x">×</span><b>12–15</b><small>séries × reps</small></div>
+                  <div class="noteline"><b>15 kg cada lado</b> · subir na próxima</div>
+                </div>
+                <div class="rest num" style="background:rgba(224,120,86,.16);color:var(--pushColor)" aria-label="Iniciar descanso de 60 segundos">60s<small>descanso</small></div>
+              </div>
+              <div class="ex-actions"><span>Anotar carga</span><span>Como fazer</span></div>
+            </div>
+
+            <div class="ex">
+              <div class="ex-main">
+                <div class="chk" aria-label="Marcar Elevação Lateral como feito"><i></i></div>
+                <div class="info">
+                  <div class="name">Elevação Lateral com Halteres</div>
+                  <div class="big num"><b>3</b><span class="x">×</span><b>15–20</b></div>
+                </div>
+                <div class="rest num" style="background:rgba(224,120,86,.16);color:var(--pushColor)">60s<small>descanso</small></div>
+              </div>
+              <div class="ex-actions"><span>Anotar carga</span><span>Como fazer</span></div>
+            </div>
+
+            <div class="ex">
+              <div class="ex-main">
+                <div class="chk"><i></i></div>
+                <div class="info">
+                  <div class="name">Tríceps Pulley (corda)</div>
+                  <div class="big num"><b>3</b><span class="x">×</span><b>12–15</b></div>
+                </div>
+                <div class="rest num" style="background:rgba(224,120,86,.16);color:var(--pushColor)">60s<small>descanso</small></div>
+              </div>
+              <div class="ex-actions"><span>Anotar carga</span><span>Como fazer</span></div>
+            </div>
+
+            <div class="complete">Concluir treino · 2 de 5</div>
+            <div class="complete-hint">Se pular algum exercício, o app pergunta antes de registrar.</div>
+          </div>
+        </div>
+        <p class="faint" style="font-size:12px;margin-top:8px">Exercícios feitos ficam mais apagados, sem riscar o nome, e o número continua legível. O exemplo mostra um item feito, para economizar espaço.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== CRONÔMETRO ==================== -->
+  <section class="screen">
+    <h2>Cronômetro de descanso</h2>
+    <p class="lede">O tempo restante é o número mais olhado durante o treino e hoje tem 20 pixels. O painel também é o elemento mais escuro e com mais sombra do app, o contrário do que você pediu.</p>
+    <ol class="changes">
+      <li><b class="n">1</b><span>Tempo em 40 pixels, legível com o celular apoiado no banco.</span></li>
+      <li><b class="n">2</b><span>Painel na mesma cor dos cards, com borda leve e sem sombra pesada.</span></li>
+      <li><b class="n">3</b><span>Atalhos de 30 a 120 s viram botões de verdade, na própria linha. Hoje são letras de 9 pixels.</span></li>
+      <li><b class="n">4</b><span>O ✕ de fechar ganha uma área de toque decente.</span></li>
+    </ol>
+
+    <div class="compare">
+      <div class="col">
+        <div class="col-head"><span class="pill now">Hoje</span><small>FloatingTimer.tsx</small></div>
+        <div class="phone" style="height:330px">
+          <div class="dimlist"><div></div><div></div><div></div></div>
+          <div class="timer-old" style="bottom:24px">
+            <div class="top">
+              <div class="lab">Supino Inclinado com Halteres</div>
+              <div class="presets-old"><span>30s</span><span>60s</span><span>75s</span><span class="on">90s</span><span>120s</span><span style="font-size:12px;padding:3px 8px">✕</span></div>
+            </div>
+            <div class="main">
+              <div class="ring">
+                <svg width="84" height="84"><circle cx="42" cy="42" r="36" fill="none" stroke="#33333A" stroke-width="6"/><circle cx="42" cy="42" r="36" fill="none" stroke="#E8572A" stroke-width="6" stroke-linecap="round" stroke-dasharray="226.2" stroke-dashoffset="45"/></svg>
+                <div class="center"><div class="num" style="font-size:20px;font-weight:800;line-height:22px">1:12</div><div class="faint" style="font-size:8px">restante</div></div>
+              </div>
+              <div style="flex:1;display:flex;gap:8px">
+                <div class="btn-old" style="background:var(--surface);color:var(--text)">⏸ Pausar</div>
+                <div class="btn-old" style="flex:0;padding:11px 14px;background:var(--surface);color:var(--textMuted)">↺</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="col-head"><span class="pill new">Proposto</span><small>B4 · A2 · A3 · A6</small></div>
+        <div class="phone" style="height:400px">
+          <div class="dimlist"><div></div><div></div><div></div></div>
+          <div class="timer">
+            <div class="top">
+              <div class="lab">Descanso · Supino Inclinado com Halteres</div>
+              <div class="closebtn" aria-label="Fechar cronômetro">✕</div>
+            </div>
+            <div class="main">
+              <div class="ring">
+                <svg width="104" height="104"><circle cx="52" cy="52" r="46" fill="none" stroke="#33333A" stroke-width="6"/><circle cx="52" cy="52" r="46" fill="none" stroke="#E07856" stroke-width="6" stroke-linecap="round" stroke-dasharray="289" stroke-dashoffset="58"/></svg>
+              </div>
+              <div style="flex:1">
+                <div class="time num">1:12</div>
+                <div class="muted" style="font-size:13px;margin-top:4px">de 1:30</div>
+              </div>
+            </div>
+            <div class="row" style="gap:var(--s-sm);padding-right:var(--s-md);margin-top:var(--s-md)">
+              <div class="btn-pause" style="flex:1">Pausar</div>
+              <div class="btn-pause" style="width:110px;background:transparent;border:1px solid var(--border);color:var(--textMuted)">Reiniciar</div>
+            </div>
+            <div class="presets num"><span>30s</span><span>60s</span><span>75s</span><span class="on">90s</span><span>120s</span></div>
+          </div>
+        </div>
+        <p class="faint" style="font-size:12px;margin-top:8px">Quando o tempo acaba, o anel e o texto ficam verdes ("Descanso concluído") e o botão vira "Reiniciar", em verde, com texto escuro.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== CORES ==================== -->
+  <section class="screen">
+    <h2>Cores dos dias de treino</h2>
+    <p class="lede">As suas cores (Push, Pull e Legs) foram gravadas no banco na versão forte, quando o app foi criado. Nenhuma atualização mudou isso depois. Se ninguém trocou pelo painel do Supabase, é provável que o seu app ainda mostre a linha de cima. As cores suaves do tema são as da linha de baixo. A da Usuária 2 já está certa.</p>
+    <div class="compare" style="justify-items:stretch">
+      <div class="col" style="max-width:none">
+        <div class="col-head"><span class="pill now">Provável hoje no banco</span></div>
+        <div class="swatches">
+          <div class="sw" style="background:var(--old-push)">PUSH</div>
+          <div class="sw" style="background:var(--old-pull)">PULL</div>
+          <div class="sw" style="background:var(--old-legs)">LEGS</div>
+        </div>
+      </div>
+      <div class="col" style="max-width:none">
+        <div class="col-head"><span class="pill new">Tokens do tema</span></div>
+        <div class="swatches">
+          <div class="sw" style="background:var(--pushColor)">PUSH</div>
+          <div class="sw" style="background:var(--pullColor)">PULL</div>
+          <div class="sw" style="background:var(--legsColor)">LEGS</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== ESTADOS ==================== -->
+  <section class="screen">
+    <h2>Quando algo dá errado</h2>
+    <p class="lede">Se a internet falha ao abrir o treino, hoje a tela fica carregando para sempre. A proposta é dizer o que houve e oferecer uma saída.</p>
+    <div class="compare">
+      <div class="col">
+        <div class="col-head"><span class="pill now">Hoje</span><small>sem conexão</small></div>
+        <div class="phone" style="height:360px">
+          <div class="statusbar old"><span class="num">6:14</span><span>▮▮ 64%</span></div>
+          <div class="spinner" aria-label="Carregando"></div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="col-head"><span class="pill new">Proposto</span><small>A4</small></div>
+        <div class="phone" style="height:360px">
+          <div class="statusbar new"><span class="num">6:14</span><span>▮▮ 64%</span></div>
+          <div class="w-head" style="padding-left:var(--s-lg)">
+            <div class="round" style="width:44px;height:44px">‹</div>
+            <div><div class="muted" style="font-size:12px">Push · Pull · Legs</div><div class="t">Treinos</div></div>
+          </div>
+          <div class="state">
+            <div class="t">Não foi possível carregar o treino</div>
+            <p>Confira a internet e tente de novo. As marcações de hoje não se perdem.</p>
+            <div class="btn">Tentar de novo</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== DECISÕES ==================== -->
+  <section class="screen">
+    <h2>O que precisa do seu sim</h2>
+    <p class="lede">As correções (barra do Android, contraste, tamanho dos toques, mensagens de erro, botão de sair) só fazem o app seguir as próprias regras e podem entrar direto. Estas outras mudam a aparência ou o comportamento:</p>
+    <div class="decisions">
+      <div><b class="code">B1</b><span>Números grandes no exercício ("4 × 8–10"), com o descanso como botão do cronômetro.<p>Muda o visual da tela de treino.</p></span></div>
+      <div><b class="code">B2</b><span>A anotação (carga) aparece inteira e em destaque abaixo dos números.<p>Só muda a forma de mostrar; você continua escrevendo do mesmo jeito.</p></span></div>
+      <div><b class="code">B3</b><span>Tela inicial com o próximo treino como herói e o botão verde "Começar treino".<p>Tira os emojis em quadrados coloridos.</p></span></div>
+      <div><b class="code">B4</b><span>Cronômetro com tempo grande, painel mais claro e atalhos maiores.<p>Ele fica um pouco mais alto na tela.</p></span></div>
+      <div><b class="code">B5</b><span>Permitir concluir o treino mesmo pulando um exercício, com confirmação.<p>É regra de uso, não só visual.</p></span></div>
+      <div><b class="code">B6</b><span>Na dieta, calorias como número principal, e proteína, carbo e gordura sem as cores dos treinos.</span></div>
+      <div><b class="code">B7</b><span>Tela de login mais simples: sem os 3 cartões, com o botão do Google em verde em vez de branco.</span></div>
+      <div><b class="code">B8</b><span>Texto mais apagado do app um pouco mais claro, para ficar legível.<p>Só o cinza mais fraco muda. O resto continua suave.</p></span></div>
+    </div>
+  </section>
+
+  <p class="foot">Mockup estático feito a partir do código (src/screens, src/components, src/utils/theme.ts). O app não foi aberto: medidas e cores vêm do código, e o que depende do banco está marcado como provável. Detalhes técnicos com arquivo e linha: docs/design/auditoria-2026-10-05.md.</p>
+</div>
+</body>
+</html>

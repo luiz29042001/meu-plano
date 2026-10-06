@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Direção Splits59</title>
+<style>
+/*
+  Fontes reais no app: Barlow Condensed (500/600/700) e Inter (400/500/600), via @expo-google-fonts.
+  Este mockup usa a fonte do sistema mais próxima:
+  - Condensada: Barlow Condensed se instalada; senão DIN Condensed (iPhone/Mac), Bahnschrift Condensed (Windows), Roboto Condensed / sans-serif-condensed (Android), Arial Narrow.
+  - Texto: Inter se instalada; senão system-ui / Segoe UI / -apple-system / Roboto.
+*/
+:root{
+  --cond:"Barlow Condensed","DIN Condensed","Bahnschrift Condensed","Bahnschrift SemiCondensed","Bahnschrift","Roboto Condensed","Arial Narrow",sans-serif-condensed,sans-serif;
+  --body:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  /* pagina de apresentacao (fora dos telefones) */
+  --page:#D8D8D4; --pageText:#262626; --pageMuted:#555553; --pageLine:#BDBDB8;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --page:#2C2C2B; --pageText:#E9E7E3; --pageMuted:#ADABA6; --pageLine:#454542; }
+}
+:root[data-theme="dark"]{ --page:#2C2C2B; --pageText:#E9E7E3; --pageMuted:#ADABA6; --pageLine:#454542; }
+
+/* ===== Variacao A: claro ===== */
+.tA{
+  --bg:#F1F1EF; --bgEl:#F7F7F5; --card:#FAFAF9; --hover:#E9E9E6; --surface:#E4E4E1; --border:#D4D4D0; --strong:#262626;
+  --text:#262626; --muted:#595957; --faint:#6E6E6B;
+  --primary:#262626; --onPrimary:#F1F1EF; --onAccent:#F1F1EF;
+  --green:#167A3D;
+  --push:#A9502F; --pull:#376CA6; --legs:#2A7546; --rest:#6E6E6B; --pink:#A6486B;
+  --orange:#8F5F10; --red:#B23A45; --purple:#7A4FA8; --supp:#8A5A12;
+}
+/* ===== Variacao B: escuro suave ===== */
+.tB{
+  --bg:#222221; --bgEl:#272726; --card:#2A2A29; --hover:#323231; --surface:#363634; --border:#3E3E3B; --strong:#E9E7E3;
+  --text:#E9E7E3; --muted:#ADABA6; --faint:#9A9893;
+  --primary:#1DB954; --onPrimary:#222221; --onAccent:#222221;
+  --green:#1DB954;
+  --push:#E07856; --pull:#5A93D4; --legs:#42B968; --rest:#9A9893; --pink:#E07A9A;
+  --orange:#E8A94A; --red:#E36A73; --purple:#B48BDB; --supp:#E0A85A;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--page);color:var(--pageText);font-family:var(--body);line-height:1.45;padding:40px 16px 80px}
+.wrap{max-width:1240px;margin:0 auto}
+.intro{max-width:720px;margin:0 auto 48px}
+.intro h1{font-family:var(--cond);font-stretch:condensed;font-weight:700;font-size:56px;line-height:.92;letter-spacing:-1px;text-transform:uppercase;margin-bottom:16px}
+.intro p{font-size:16px;color:var(--pageMuted);margin-bottom:10px}
+.intro p strong{color:var(--pageText)}
+.sec{margin:0 auto 72px}
+.sec>h2{max-width:820px;margin:0 auto 6px;font-family:var(--cond);font-stretch:condensed;font-weight:600;font-size:32px;letter-spacing:-.5px;text-transform:uppercase}
+.sec>p.lead{max-width:820px;margin:0 auto 24px;color:var(--pageMuted);font-size:15px}
+.pair{display:flex;flex-wrap:wrap;gap:32px;justify-content:center;align-items:flex-start}
+.col{width:min(390px,100%)}
+.col>.cap{font-family:var(--cond);font-stretch:condensed;font-weight:600;font-size:18px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;display:flex;justify-content:space-between;gap:8px}
+.col>.cap span{font-family:var(--body);font-weight:400;font-size:13px;text-transform:none;letter-spacing:0;color:var(--pageMuted)}
+.col>.why{font-size:13px;color:var(--pageMuted);margin-top:10px}
+
+/* ===== Telefone ===== */
+.phone{width:min(390px,100%);height:844px;background:var(--bg);color:var(--text);font-family:var(--body);position:relative;overflow:hidden;border-radius:36px;outline:1px solid var(--pageLine)}
+.phone.short{height:auto;padding-bottom:28px}
+.scr{height:100%;overflow:hidden;padding:0 20px}
+.sb{height:47px;display:flex;align-items:center;justify-content:space-between;font-size:15px;font-weight:600;padding:0 10px}
+.batt{width:24px;height:12px;border:1.5px solid currentColor;border-radius:3px;position:relative;opacity:.85}
+.batt::after{content:"";position:absolute;inset:1.5px 6px 1.5px 1.5px;background:currentColor;border-radius:1px}
+.c{font-family:var(--cond);font-stretch:condensed}
+.up{text-transform:uppercase}
+svg.i{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:square}
+
+.top{height:56px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.word{font-family:var(--cond);font-stretch:condensed;font-weight:700;font-size:24px;letter-spacing:-.5px;text-transform:uppercase}
+.ttl{font-family:var(--cond);font-stretch:condensed;font-weight:600;font-size:24px;letter-spacing:-.5px;text-transform:uppercase;flex:1}
+.iconbtn{width:44px;height:44px;display:flex;align-items:center;justify-content:center;margin-left:-11px;color:var(--text);background:none;border:0}
+.iconbtn.r{margin-left:0;margin-right:-11px}
+.link{min-height:44px;display:inline-flex;align-items:center;font-size:15px;font-weight:500;color:var(--text);text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:1px;background:none;border:0;font-family:var(--body)}
+.muted{color:var(--muted)}
+.faint{color:var(--faint)}
+.hr{height:1px;background:var(--border)}
+
+/* manchete do dia com faixa */
+.hero{position:relative;padding-left:20px;margin:8px 0 0}
+.hero::before{content:"";position:absolute;left:0;top:6px;bottom:6px;width:6px;background:var(--day);border-radius:1px}
+.kick{font-size:14px;color:var(--muted);margin-bottom:2px}
+.day{font-family:var(--cond);font-stretch:condensed;font-weight:600;font-size:72px;line-height:.92;letter-spacing:-1.5px;text-transform:uppercase}
+.mus{font-size:16px;color:var(--muted);margin-top:6px}
+
+.nums{display:flex;margin:28px 0 24px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.nums>div{flex:1;padding:14px 0 12px 14px;border-left:1px solid var(--border)}
+.nums>div:first-child{border-left:0;padding-left:0}
+.nums b{display:block;font-family:var(--cond);font-stretch:condensed;font-weight:700;font-size:40px;line-height:1;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+.nums span{font-size:13px;color:var(--muted)}
+
+.primary{width:100%;height:56px;border:0;border-radius:2px;background:var(--primary);color:var(--onPrimary);font-family:var(--cond);font-stretch:condensed;font-weight:600;font-size:20px;letter-spacing:.5px;text-transform:uppercase;display:flex;align-items:center;justify-content:center}
+.outline{height:48px;padding:0 18px;border:1px solid var(--strong);border-radius:2px;background:transparent;color:var(--text);font-family:var(--cond);font-stretch:condensed;font-weight:600;font-size:18px;letter-spacing:.5px;text-transform:uppercase;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.note{font-size:14px;color:var(--muted);margin-top:12px}
+
+.rows{list-style:none;margin-top:36px;border-top:1px solid var(--border)}
+.rows li{min-height:56px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border)}
+.rows .rt{font-family:var(--cond);font-stretch:condensed;font-weight:600;font-size:20px;text-transform:uppercase;letter-spacing:.3px;flex:1}
+.rows .rv{font-size:14px;color:var(--muted)}
+.rows svg{width:18px;height:18px;color:var(--faint)}
+.foot{font-size:14px;color:var(--muted);margin-top:16px}
+.foot b{font-family:var(--cond);font-stretch:condensed;font-weight:700;font-size:20px;color:var(--text);letter-spacing:0}
+
+/* ===== Treino ===== */
+.tabs{display:flex;gap:22px;height:48px;align-items:stretch;border-bottom:1px solid var(--border);margin:0 -20px;padding:0 20px;overflow:hidden;white-space:nowrap}
+.tabs span{display:flex;align-items:center;font-family:var(--cond);font-stretch:condensed;font-weight:600;font-size:18px;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px}
+.tabs span.on{color:var(--text);border-bottom-color:var(--day)}
+.dhead{display:flex;align-items:flex-end;justify-content:space-between;margin-top:20px}
+.dhead .day{font-size:64px}
+.count{font-family:var(--cond);font-stretch:condensed;font-weight:700;font-size:40px;line-height:1;letter-spacing:-.5px;font-variant-numeric:tabular-nums;padding-bottom:4px}
+.count small{font-size:24px;color:var(--muted);font-weight:600}
+.bar{height:4px;background:var(--surface);margin:14px 0 0;border-radius:500px;overflow:hidden}
+.bar i{display:block;height:100%;width:50%;background:var(--day)}
+.ex{list-style:none;margin-top:8px}
+.ex>li{border-bottom:1px solid var(--border)}
+.exr{min-height:56px;display:flex;align-items:center;gap:12px}
+.exr .nm{flex:1;font-size:16px;line-height:1.3}
+.exr .sr{font-family:var(--cond);font-stretch:condensed;font-weight:600;font-size:22px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.done .nm,.done .sr{color:var(--faint)}
+.chk{width:56px;height:56px;margin-right:-6px;display:flex;align-items:center;justify-content:center;flex:none}
+.chk i{width:30px;height:30px;border:1.5px solid var(--strong);border-radius:2px;display:flex;align-items:center;justify-content:center}
+.done .chk i{background:var(--green);border-color:var(--green);color:var(--onPrimary)}
+.done .chk i svg{width:18px;height:18px;stroke-width:2.4}
+.cur{padding:16px 0 18px}
+.cur .pos{font-size:13px;color:var(--muted)}
+.cur .row1{display:flex;gap:8px;align-items:flex-start}
+.cur .nm{flex:1;font-size:18px;font-weight:600;line-height:1.3;padding-top:4px}
+.cur .chk i{width:40px;height:40px}
+.big{display:flex;align-items:flex-end;gap:18px;margin-top:6px}
+.big .sx{font-family:var(--cond);font-stretch:condensed;font-weight:700;font-size:64px;line-height:.92;letter-spacing:-1.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.big .sx em{font-style:normal;color:var(--muted);font-weight:500;letter-spacing:0;margin:0 2px}
+.big .ld{border-left:1px solid var(--border);padding-left:16px}
+.big .ld b{display:block;font-family:var(--cond);font-stretch:condensed;font-weight:700;font-size:40px;line-height:1;letter-spacing:-.5px}
+.lbls{display:flex;gap:18px;font-size:13px;color:var(--muted);margin-top:6px}
+.lbls span:first-child{width:var(--sxw,170px)}
+.last{font-size:14px;color:var(--muted);margin-top:12px}
+.acts{display:flex;align-items:center;gap:18px;margin-top:14px;flex-wrap:wrap}
+
+/* cronometro */
+.timer{position:absolute;left:0;right:0;bottom:0;background:var(--bgEl);border-top:1px solid var(--border);padding:16px 20px 30px}
+.timer::before{content:"";position:absolute;left:0;top:-1px;height:3px;width:var(--left,62%);background:var(--day)}
+.tr1{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.tlab{font-size:13px;color:var(--muted)}
+.tname{font-size:15px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:190px}
+.tbig{font-family:var(--cond);font-stretch:condensed;font-weight:700;font-size:80px;line-height:.9;letter-spacing:-1.5px;font-variant-numeric:tabular-nums}
+.tbtns{display:flex;gap:8px}
+.tbtns .outline{padding:0 14px}
+.chips{display:flex;gap:8px;margin-top:14px;align-items:center}
+.chip{min-width:56px;height:48px;padding:0 10px;border:1px solid var(--border);border-radius:2px;display:flex;align-items:center;justify-content:center;font-family:var(--cond);font-stretch:condensed;font-weight:600;font-size:18px;font-variant-numeric:tabular-nums}
+.chip.on{border-color:var(--strong);background:var(--surface)}
+.chips .link{margin-left:auto;font-size:14px}
+.timer.fin::before{width:100%;background:var(--green)}
+.timer.fin .tlab{color:var(--green);font-weight:600}
+
+/* ===== Dieta ===== */
+.seg{display:flex;margin-top:4px}
+.seg span{flex:1;height:48px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);font-family:var(--cond);font-stretch:condensed;font-weight:600;font-size:18px;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)}
+.seg span+span{border-left:0}
+.seg span.on{border-color:var(--strong);color:var(--text);background:var(--surface)}
+.seg span.on+span{border-left:0}
+.kcal{margin-top:24px;display:flex;align-items:flex-end;gap:10px}
+.kcal b{font-family:var(--cond);font-stretch:condensed;font-weight:600;font-size:72px;line-height:.92;letter-spacing:-1.5px;font-variant-numeric:tabular-nums}
+.kcal span{font-size:15px;color:var(--muted);padding-bottom:8px}
+.mac{display:flex;margin-top:16px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.mac>div{flex:1;padding:12px 0 10px 14px;border-left:1px solid var(--border)}
+.mac>div:first-child{border-left:0;padding-left:0}
+.mac b{font-family:var(--cond);font-stretch:condensed;font-weight:700;font-size:32px;line-height:1;font-variant-numeric:tabular-nums}
+.mac b small{font-size:18px;font-weight:600;color:var(--muted);margin-left:2px}
+.mac span{display:block;font-size:13px;color:var(--muted)}
+.meals{list-style:none;margin-top:24px;border-top:1px solid var(--border)}
+.meals>li{border-bottom:1px solid var(--border);position:relative}
+.meals>li::before{content:"";position:absolute;left:0;top:16px;height:24px;width:3px;background:var(--mc)}
+.mh{min-height:56px;display:flex;align-items:center;gap:12px;padding-left:14px}
+.mh .t{width:44px;font-family:var(--cond);font-stretch:condensed;font-weight:600;font-size:18px;color:var(--muted);font-variant-numeric:tabular-nums}
+.mh .n{flex:1;font-size:16px;font-weight:500}
+.mh .k{font-family:var(--cond);font-stretch:condensed;font-weight:600;font-size:20px;font-variant-numeric:tabular-nums}
+.mh svg{width:18px;height:18px;color:var(--muted)}
+.tag{display:inline-block;background:var(--text);color:var(--bg);font-family:var(--cond);font-stretch:condensed;font-weight:600;font-size:13px;letter-spacing:.5px;text-transform:uppercase;padding:1px 6px;margin-left:8px;vertical-align:2px;border-radius:1px}
+.items{list-style:none;padding:0 0 10px 70px}
+.items li{display:flex;align-items:baseline;gap:10px;min-height:44px;padding:6px 0;border-top:1px solid var(--border)}
+.items .in{flex:1;font-size:15px;line-height:1.3}
+.items .in small{display:block;font-size:13px;color:var(--muted)}
+.items .ik{font-family:var(--cond);font-stretch:condensed;font-weight:600;font-size:18px;color:var(--muted);font-variant-numeric:tabular-nums}
+.hint{font-size:13px;color:var(--muted);padding:0 0 12px 70px}
+
+/* ===== Referencia atual (tokens de hoje) ===== */
+.now{--nbg:#1A1A1C;--ncard:#26262A;--nsurf:#33333A;--ntext:#F2F2F4;--nmut:#A8A8B0;--ngreen:#1DB954;--npush:#E07856;--npull:#5A93D4}
+.mini{width:390px;transform:scale(.62);transform-origin:top left;background:var(--nbg);color:var(--ntext);border-radius:36px;padding:52px 20px 28px;font-family:var(--body)}
+.miniwrap{width:242px;height:430px;overflow:hidden;border-radius:22px;outline:1px solid var(--pageLine)}
+.mini .g{font-size:15px;color:var(--nmut)}.mini .nmx{font-size:26px;font-weight:800;margin-bottom:18px}
+.mini .card{background:var(--ncard);border-radius:16px;padding:16px;border-left:4px solid var(--npush);display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.mini .card small{font-size:11px;letter-spacing:1.5px;color:var(--nmut)}.mini .card b{display:block;font-size:22px;color:var(--npush)}
+.mini .play{width:44px;height:44px;border-radius:50%;background:var(--npush);display:flex;align-items:center;justify-content:center;color:#000;font-size:16px}
+.mini .two{display:flex;gap:10px;margin-bottom:18px}.mini .two div{flex:1;background:var(--ncard);border-radius:16px;padding:14px;text-align:center}
+.mini .two b{display:block;font-size:24px;color:var(--ngreen)}.mini .two span{font-size:12px;color:var(--nmut)}
+.mini .xr{display:flex;align-items:center;gap:12px;background:var(--ncard);border-radius:16px;padding:12px;margin-bottom:10px;font-weight:600}
+.mini .xr i{width:52px;height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:24px}
+.refrow{display:flex;gap:24px;align-items:flex-start;justify-content:center;flex-wrap:wrap}
+.refrow ul{max-width:420px;font-size:14px;color:var(--pageMuted);padding-left:18px}
+.refrow li{margin-bottom:6px}
+
+/* ===== Paleta e tipografia ===== */
+.pal{width:min(390px,100%);background:var(--bg);color:var(--text);padding:20px;border-radius:4px;outline:1px solid var(--pageLine)}
+.pal h3{font-family:var(--cond);font-stretch:condensed;font-weight:600;font-size:22px;text-transform:uppercase;margin-bottom:12px}
+.sw{display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:center;min-height:36px;border-top:1px solid var(--border);font-size:13px}
+.sw i{width:28px;height:20px;border-radius:2px;outline:1px solid var(--border)}
+.sw code{font-family:var(--body);color:var(--muted);font-size:12px}
+.sw b{font-weight:600;font-size:12px;color:var(--muted)}
+.spec{margin-top:20px;border-top:1px solid var(--border);padding-top:14px}
+.spec .s1{font-family:var(--cond);font-stretch:condensed;font-weight:700;font-size:64px;line-height:.92;letter-spacing:-1.5px}
+.spec .s2{font-family:var(--cond);font-stretch:condensed;font-weight:600;font-size:24px;text-transform:uppercase;margin-top:8px}
+.spec .s3{font-size:16px;margin-top:6px}
+.spec .s4{font-size:13px;color:var(--muted);margin-top:4px}
+
+/* ===== Funciona / nao funciona ===== */
+.fit{max-width:820px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.fit h3{font-family:var(--cond);font-stretch:condensed;font-weight:600;font-size:22px;text-transform:uppercase;border-bottom:1px solid var(--pageText);padding-bottom:6px;margin-bottom:8px}
+.fit ul{list-style:none}
+.fit li{font-size:14px;padding:8px 0;border-bottom:1px solid var(--pageLine);color:var(--pageMuted)}
+.fit li b{color:var(--pageText);font-weight:600}
+@media (max-width:700px){.fit{grid-template-columns:1fr}}
+
+/* ===== Sim ===== */
+.yes{max-width:820px;margin:0 auto;counter-reset:q}
+.yes h2{font-family:var(--cond);font-stretch:condensed;font-weight:700;font-size:48px;line-height:.92;letter-spacing:-1px;text-transform:uppercase;margin-bottom:8px}
+.yes>p{color:var(--pageMuted);margin-bottom:16px}
+.yes ol{list-style:none;border-top:1px solid var(--pageText)}
+.yes li{counter-increment:q;display:grid;grid-template-columns:44px 1fr;gap:8px;padding:14px 0;border-bottom:1px solid var(--pageLine);font-size:16px}
+.yes li::before{content:counter(q);font-family:var(--cond);font-stretch:condensed;font-weight:700;font-size:32px;line-height:1}
+.yes li small{display:block;color:var(--pageMuted);font-size:14px;margin-top:2px}
+.rec{max-width:820px;margin:0 auto 72px;border-left:6px solid #1DB954;padding:4px 0 4px 18px}
+.rec b{font-family:var(--cond);font-stretch:condensed;font-weight:700;font-size:28px;text-transform:uppercase;display:block;line-height:1.1}
+.rec p{color:var(--pageMuted);font-size:15px;margin-top:6px}
+@media (prefers-reduced-motion:no-preference){.primary,.outline,.chip{transition:background-color .1s ease}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="intro">
+  <h1>Direção Splits59</h1>
+  <p>Proposta para avaliar uma nova cara para o Meu Plano, inspirada na linguagem do site da Splits59: <strong>letra condensada em caixa alta, números enormes, linhas finas no lugar de cards e cantos retos</strong>. Sem logo, nome ou fotos da marca.</p>
+  <p><strong>A "claro"</strong> é fiel ao site (papel claro, tinta escura, botão preto). <strong>B "escuro suave"</strong> usa a mesma linguagem num carvão um pouco mais claro que o de hoje, com o verde como botão principal.</p>
+  <p>As duas têm o mesmo layout: só muda a cor. Fontes reais no app: <strong>Barlow Condensed</strong> e <strong>Inter</strong>. Aqui aparecem com a fonte mais próxima do seu computador. Números de dieta e carga são ilustrativos.</p>
+</header>
+
+<!-- Funciona / nao funciona -->
+<section class="sec">
+  <h2>O estilo no meio da série</h2>
+  <p class="lead">O site é feito para olhar foto com calma. O app é usado com pressa, mão suada e o celular apoiado no banco.</p>
+  <div class="fit">
+    <div>
+      <h3>Aproveitar</h3>
+      <ul>
+        <li><b>Letra condensada nos números.</b> "3 × 8–12" cabe em 64px numa linha.</li>
+        <li><b>Nome do dia como manchete.</b> "PUSH A" grande responde o que treinar hoje.</li>
+        <li><b>Linhas finas no lugar de cards.</b> Menos blocos, menos contraste, sem sombra.</li>
+        <li><b>Quadrados de escolha.</b> Os tamanhos P, M, G viram os atalhos 30, 60, 90 s.</li>
+        <li><b>Faixa lateral da legging.</b> Vira a faixa da cor do dia.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Evitar</h3>
+      <ul>
+        <li><b>Texto pequeno e fino em caixa alta.</b> Nome de exercício fica em caixa normal, 16px ou mais.</li>
+        <li><b>Fotos grandes.</b> Pesam no 4G e distraem. O herói é o número.</li>
+        <li><b>Preto e branco puros.</b> Contraste máximo, contra o seu pedido.</li>
+        <li><b>Quadrados de 34px.</b> No app, 48px no mínimo; o "feito" tem 56px.</li>
+        <li><b>Texto correndo na tela.</b> O único movimento contínuo é o cronômetro.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- Referencia atual -->
+<section class="sec">
+  <h2>Como está hoje</h2>
+  <p class="lead">A Home atual, em tamanho reduzido, só como referência.</p>
+  <div class="refrow now">
+    <div class="miniwrap"><div class="mini">
+      <p class="g">Bom dia,</p><p class="nmx">Luiz</p>
+      <div class="card"><div><small>PRÓXIMO TREINO</small><b>PUSH A</b></div><span class="play">▶</span></div>
+      <div class="two"><div><b>128</b><span>treinos</span></div><div><b>✓</b><span>hoje</span></div></div>
+      <div class="xr"><i style="background:#E0785626">🏋️</i>Treinos</div>
+      <div class="xr"><i style="background:#1DB95426">🥗</i>Dieta</div>
+      <div class="xr"><i style="background:#5A93D426">📅</i>Calendário</div>
+    </div></div>
+    <ul>
+      <li>Cards arredondados com sombra e ícones em quadrado colorido.</li>
+      <li>O nome da pessoa (26px) é maior que o treino do dia (22px).</li>
+      <li>Números pequenos e o verde espalhado pela tela.</li>
+      <li>Fundo <code>#1A1A1C</code>, texto <code>#F2F2F4</code>: contraste 15,5:1.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- HOME -->
+<section class="sec">
+  <h2>Home</h2>
+  <p class="lead">Uma ação: começar o próximo treino. O nome do dia é a manchete; os números do treino vêm logo abaixo, sem cards.</p>
+  <div class="pair">
+    <div class="col"><div class="cap">A · claro <span>papel #F1F1EF</span></div><div class="phone tA" data-t="home"></div></div>
+    <div class="col"><div class="cap">B · escuro suave <span>carvão #222221</span></div><div class="phone tB" data-t="home"></div></div>
+  </div>
+</section>
+
+<!-- TREINO -->
+<section class="sec">
+  <h2>Treino</h2>
+  <p class="lead">O exercício atual fica aberto, com séries × repetições em 64px e a última carga ao lado. O "feito" tem 56px. O cronômetro fica embaixo, com o tempo em 80px e os atalhos em quadrados de 48px.</p>
+  <div class="pair">
+    <div class="col"><div class="cap">A · claro <span>botão de contorno em tinta</span></div><div class="phone tA" data-t="treino"></div></div>
+    <div class="col"><div class="cap">B · escuro suave <span>linhas #3E3E3B</span></div><div class="phone tB" data-t="treino"></div></div>
+  </div>
+</section>
+
+<!-- DIETA -->
+<section class="sec">
+  <h2>Dieta</h2>
+  <p class="lead">Total do dia em 72px, macros sem cor e refeições em lista com "+". A próxima refeição já vem aberta.</p>
+  <div class="pair">
+    <div class="col"><div class="cap">A · claro</div><div class="phone tA" data-t="dieta"></div></div>
+    <div class="col"><div class="cap">B · escuro suave</div><div class="phone tB" data-t="dieta"></div></div>
+  </div>
+</section>
+
+<!-- ESTADOS -->
+<section class="sec">
+  <h2>Outros estados</h2>
+  <p class="lead">Vazio, erro e descanso concluído, na mesma linguagem.</p>
+  <div class="pair">
+    <div class="col"><div class="cap">Home sem programa <span>B</span></div>
+      <div class="phone tB short"><div class="scr" style="height:auto">
+        <div class="sb"><span>6:12</span><span class="batt"></span></div>
+        <div class="top"><span class="word">Meu Plano</span><button class="link">Perfil</button></div>
+        <div class="hero" style="--day:var(--rest)"><p class="kick">Seu treino</p><h1 class="day">Sem programa</h1><p class="mus">Responda algumas perguntas e montamos um treino para você revisar.</p></div>
+        <div style="height:28px"></div>
+        <button class="primary">Montar meu treino</button>
+        <p class="note">Leva cerca de 3 minutos. O treino gerado é uma sugestão.</p>
+      </div></div>
+    </div>
+    <div class="col"><div class="cap">Treino com erro <span>B</span></div>
+      <div class="phone tB short"><div class="scr" style="height:auto">
+        <div class="sb"><span>6:12</span><span class="batt"></span></div>
+        <div class="top"><button class="iconbtn" aria-label="Voltar"><svg class="i" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="ttl">Treinos</span></div>
+        <div class="hero" style="--day:var(--red)"><p class="kick">Algo deu errado</p><h1 class="day" style="font-size:56px">Sem conexão</h1><p class="mus">Não foi possível carregar seu treino. Confira a internet e tente de novo.</p></div>
+        <div style="height:28px"></div>
+        <button class="outline" style="width:100%">Tentar de novo</button>
+      </div></div>
+    </div>
+    <div class="col"><div class="cap">Descanso concluído <span>A</span></div>
+      <div class="phone tA short" style="--day:var(--push);height:250px">
+        <div class="timer fin" style="--left:100%">
+          <div class="tr1"><div><p class="tlab">Descanso concluído</p><p class="tname">Próxima série: Desenvolvimento</p></div></div>
+          <div class="tr1" style="margin-top:6px"><span class="tbig">0:00</span><div class="tbtns"><button class="outline">De novo</button></div></div>
+          <div class="chips"><span class="chip">30</span><span class="chip">60</span><span class="chip on">90</span><span class="chip">120</span><button class="link">Fechar</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PALETAS -->
+<section class="sec">
+  <h2>Paletas e letras</h2>
+  <p class="lead">Contraste calculado contra o fundo (WCAG). Texto comum precisa de 4,5:1 ou mais.</p>
+  <div class="pair">
+    <div class="pal tA" data-pal="A"></div>
+    <div class="pal tB" data-pal="B"></div>
+  </div>
+</section>
+
+<div class="rec">
+  <b>Recomendação: B, escuro suave</b>
+  <p>Traz o que o estilo tem de melhor para o treino (letras, números grandes, linhas finas, cantos retos) e mantém o seu pedido: fundo mais claro que hoje e menos contraste (12,9:1 contra 15,5:1). As cores dos dias que já estão no banco continuam valendo. A variação clara pode virar uma opção de tema no futuro, sem refazer as telas.</p>
+</div>
+
+<section class="yes">
+  <h2>O que precisa do seu sim</h2>
+  <p>Responda item a item. Nada foi mudado no app ainda.</p>
+  <ol>
+    <li><div>Direção: A (claro), B (escuro suave) ou manter o visual atual só com as correções da auditoria?</div></li>
+    <li><div>Fonte nova: Barlow Condensed + Inter?<small>Alternativa mais "academia": Oswald + Inter.</small></div></li>
+    <li><div>Cantos retos (2 a 4px) no lugar dos arredondados?</div></li>
+    <li><div>Botão principal verde (B) ou tinta escura (A)?</div></li>
+    <li><div>Cores dos dias: manter as atuais (B) ou escurecer (A)?<small>Na A, é preciso mudar as cores no banco ou traduzir no código.</small></div></li>
+    <li><div>Caixa alta só no nome do dia, nos números e nos botões, com nomes de exercício em letra normal: ok?</div></li>
+    <li><div>Ciente de que é preciso gerar um APK novo e publicar a web para ver a mudança?</div></li>
+  </ol>
+</section>
+
+</div>
+
+<!-- ===== Templates das telas (iguais em A e B; muda so a cor) ===== -->
+<template id="home">
+  <div class="scr">
+    <div class="sb"><span>6:12</span><span class="batt"></span></div>
+    <div class="top"><span class="word">Meu Plano</span><button class="link" aria-label="Abrir perfil">Perfil</button></div>
+    <p class="muted" style="font-size:15px;margin-top:4px">Bom dia, Luiz. Segunda, 6 de outubro.</p>
+    <div class="hero" style="--day:var(--push);margin-top:28px">
+      <p class="kick">Próximo treino</p>
+      <h1 class="day">Push A</h1>
+      <p class="mus">Peito, ombro e tríceps</p>
+    </div>
+    <div class="nums">
+      <div><b>6</b><span>exercícios</span></div>
+      <div><b>18</b><span>séries</span></div>
+      <div><b>55</b><span>minutos, aprox.</span></div>
+    </div>
+    <button class="primary">Começar treino</button>
+    <p class="note">Último treino: Legs B, no sábado.</p>
+    <ul class="rows">
+      <li><span class="rt">Dieta</span><span class="rv">2.150 kcal hoje</span><svg class="i" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></li>
+      <li><span class="rt">Calendário</span><span class="rv">14 treinos em outubro</span><svg class="i" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></li>
+    </ul>
+    <p class="foot"><b>128</b> treinos concluídos desde o início</p>
+  </div>
+</template>
+
+<template id="treino">
+  <div class="scr" style="--day:var(--push)">
+    <div class="sb"><span>6:31</span><span class="batt"></span></div>
+    <div class="top">
+      <button class="iconbtn" aria-label="Voltar"><svg class="i" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <span class="ttl">Treinos</span>
+      <button class="iconbtn r" aria-label="Abrir calendário"><svg class="i" viewBox="0 0 24 24"><path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/></svg></button>
+    </div>
+    <div class="tabs"><span class="on">Push A</span><span>Pull A</span><span>Legs A</span><span>Push B</span><span>Pull B</span><span>Legs B</span></div>
+    <div class="dhead">
+      <div class="hero" style="margin:0"><h1 class="day">Push A</h1></div>
+      <span class="count">3<small>/6</small></span>
+    </div>
+    <div class="bar"><i></i></div>
+    <ul class="ex">
+      <li class="done"><div class="exr"><span class="chk" style="margin-right:0;margin-left:-6px"><i><svg class="i" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></i></span><span class="nm"><b class="sr" style="color:var(--text)">3 feitos</b><br><small style="font-size:13px">Supino reto, supino inclinado, crucifixo</small></span><button class="link">Ver</button></div></li>
+      <li class="cur">
+        <p class="pos">Exercício 4 de 6</p>
+        <div class="row1"><span class="nm">Desenvolvimento com halteres (sentado)</span><span class="chk" role="checkbox" aria-label="Marcar Desenvolvimento com halteres como feito"><i></i></span></div>
+        <div class="big"><span class="sx">3<em>×</em>8–12</span><div class="ld"><b>22 kg</b></div></div>
+        <div class="lbls"><span style="width:170px">séries × repetições</span><span>última carga</span></div>
+        <p class="last">Cotovelos levemente à frente do tronco.</p>
+        <div class="acts"><button class="outline">Descanso <span style="text-transform:none">90 s</span></button><button class="link">Anotar</button><button class="link">Como fazer</button></div>
+      </li>
+      <li><div class="exr"><span class="nm">Elevação lateral com halteres</span><span class="sr">4 × 12–20</span><span class="chk"><i></i></span></div></li>
+    </ul>
+  </div>
+  <div class="timer" style="--day:var(--push);--left:62%">
+    <div class="tr1"><div><p class="tlab">Descanso</p><p class="tname">Desenvolvimento com halteres</p></div></div>
+    <div class="tr1" style="margin-top:4px"><span class="tbig">0:56</span><div class="tbtns"><button class="outline" style="text-transform:none">+15 s</button><button class="outline">Pausar</button></div></div>
+    <div class="chips"><span class="chip">30</span><span class="chip">60</span><span class="chip on">90</span><span class="chip">120</span><button class="link">Fechar</button></div>
+  </div>
+</template>
+
+<template id="dieta">
+  <div class="scr">
+    <div class="sb"><span>7:10</span><span class="batt"></span></div>
+    <div class="top">
+      <button class="iconbtn" aria-label="Voltar"><svg class="i" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <span class="ttl">Dieta</span>
+      <button class="link">Sobre o plano</button>
+    </div>
+    <div class="seg" role="radiogroup" aria-label="Variante da dieta"><span class="on">Variante A</span><span>Variante B</span></div>
+    <div class="kcal"><b>2.150</b><span>kcal no dia</span></div>
+    <div class="mac">
+      <div><b>165<small>g</small></b><span>proteína</span></div>
+      <div><b>190<small>g</small></b><span>carboidrato</span></div>
+      <div><b>72<small>g</small></b><span>gordura</span></div>
+    </div>
+    <ul class="meals">
+      <li style="--mc:var(--red)"><div class="mh"><span class="t">06:00</span><span class="n">Treino em jejum</span><span class="k faint">0</span><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div></li>
+      <li style="--mc:var(--orange)"><div class="mh"><span class="t">07:30</span><span class="n">Café da manhã<span class="tag">Próxima</span></span><span class="k">620</span><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/></svg></div>
+        <ul class="items">
+          <li><span class="in">Ovos mexidos<small>3 ovos inteiros</small></span><span class="ik">210</span></li>
+          <li><span class="in">Pão de forma integral<small>2 fatias</small></span><span class="ik">140</span></li>
+          <li><span class="in">Banana ou maçã<small>1 unidade média</small></span><span class="ik">80</span></li>
+          <li><span class="in">Manteiga no pão<small>1 colher de chá</small></span><span class="ik">60</span></li>
+        </ul>
+        <p class="hint">Toque num item para ver as trocas.</p>
+      </li>
+      <li style="--mc:var(--purple)"><div class="mh"><span class="t">10:30</span><span class="n">Lanche da manhã</span><span class="k">220</span><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div></li>
+      <li style="--mc:var(--push)"><div class="mh"><span class="t">13:00</span><span class="n">Almoço</span><span class="k">640</span><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div></li>
+      <li style="--mc:var(--legs)"><div class="mh"><span class="t">16:30</span><span class="n">Lanche da tarde</span><span class="k">250</span><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div></li>
+    </ul>
+  </div>
+</template>
+
+<script>
+// Clona cada tela nas duas variacoes (o layout e o mesmo; muda so a cor)
+document.querySelectorAll('.phone[data-t]').forEach(function(p){
+  var t=document.getElementById(p.getAttribute('data-t'));
+  if(t) p.appendChild(t.content.cloneNode(true));
+});
+// Paletas
+var PAL={
+  A:{name:'A · claro',rows:[
+    ['bg','#F1F1EF','fundo'],['surface','#E4E4E1','escolha selecionada'],['border','#D4D4D0','linhas finas'],
+    ['text','#262626','13,4:1'],['textMuted','#595957','6,2:1'],['textFaint','#6E6E6B','4,5:1'],
+    ['primary','#262626','botão: 13,4:1'],['green','#167A3D','4,8:1'],
+    ['pushColor','#A9502F','4,8:1'],['pullColor','#376CA6','4,8:1'],['legsColor','#2A7546','5,0:1'],['pinkColor','#A6486B','4,9:1']]},
+  B:{name:'B · escuro suave',rows:[
+    ['bg','#222221','fundo (hoje #1A1A1C)'],['surface','#363634','escolha selecionada'],['border','#3E3E3B','linhas finas'],
+    ['text','#E9E7E3','12,9:1 (hoje 15,5)'],['textMuted','#ADABA6','6,9:1'],['textFaint','#9A9893','5,5:1'],
+    ['primary','#1DB954','botão: 6,2:1'],['green','#1DB954','6,2:1'],
+    ['pushColor','#E07856','5,3:1'],['pullColor','#5A93D4','5,0:1'],['legsColor','#42B968','6,4:1'],['pinkColor','#E07A9A','5,6:1']]}
+};
+document.querySelectorAll('.pal').forEach(function(el){
+  var d=PAL[el.getAttribute('data-pal')], h='<h3>'+d.name+'</h3>';
+  d.rows.forEach(function(r){h+='<div class="sw"><i style="background:'+r[1]+'"></i><span>'+r[0]+' <code>'+r[1]+'</code></span><b>'+r[2]+'</b></div>';});
+  h+='<div class="spec"><div class="s1">4 × 8–10</div><div class="s2">Push A</div><div class="s3">Supino inclinado com halteres</div><div class="s4">Barlow Condensed para números e títulos. Inter para nomes e frases.</div></div>';
+  el.innerHTML=h;
+});
+</script>
+</body>
+</html>

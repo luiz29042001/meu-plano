@@ -1,133 +1,205 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View, Text, TouchableOpacity, StyleSheet,
-  ScrollView, ActivityIndicator,
-} from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import { useAuth } from '../contexts/AuthContext';
-import { updateDietVariant } from '../services/profile';
+import { useDiet } from '../hooks/useDiet';
+import { useTheme, makeStyles } from '../contexts/ThemeContext';
+import { useTimerInsets } from '../hooks/useTimerInsets';
 import { makeMeals, calcTotals } from '../services/dietData';
-import { fetchDietPlan } from '../services/diet';
-import { Colors, Radius, FontSize } from '../utils/theme';
-import type { Meal, DietItem, DietPlan, DietVariant } from '../types';
+import { Font, FontSize, LineHeight, Spacing, Touch, Tracking, numberLineHeight } from '../utils/theme';
+import { ScreenHeader } from '../components/ScreenHeader';
+import { DayHeadline, Tag } from '../components/DayHeadline';
+import { NumbersRow } from '../components/NumbersRow';
+import { Segmented } from '../components/Segmented';
+import { ErrorBlock } from '../components/ErrorBlock';
+import { LinkButton } from '../components/Buttons';
+import { Skeleton } from '../components/Skeleton';
+import type { Meal, DietItem, DietVariant } from '../types';
 
-function SubsPanel({ item, color }: { item: DietItem; color: string }) {
-  if (!item.subs.length) return null;
-  return (
-    <View style={styles.subsPanel}>
-      <Text style={[styles.subsTitle, { color }]}>Substitutos possíveis</Text>
-      {item.subs.map((sub, i) => (
-        <View key={i} style={styles.subCard}>
-          <View style={styles.subHeader}>
-            <Text style={styles.subName}>{sub.name}</Text>
-            {sub.kcal > 0 && <Text style={[styles.subKcal, { color }]}>{sub.kcal} kcal</Text>}
-          </View>
-          <Text style={styles.subQty}>{sub.qty}</Text>
-          <Text style={styles.subNote}>{sub.note}</Text>
-        </View>
-      ))}
-    </View>
-  );
+/** 2150 -> "2.150" (padrão pt-BR, sem depender de Intl no Android). */
+const fmt = (n: number) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+/** Tira emoji/símbolos do começo de textos vindos dos dados (spec: sem emoji). */
+const plain = (s: string) => s.replace(/^[^A-Za-zÀ-ÿ0-9]+/, '').trim();
+
+/** Rótulo do segmento: "A" -> "Variante A"; "Treino" -> "Dia de treino". */
+const variantLabel = (label: string) =>
+  label.length <= 2 ? `Variante ${label}` : `Dia de ${label.toLowerCase()}`;
+
+/** Minutos desde 00:00 de "08:00"; null se o horário não for legível. */
+function minutesOf(time: string): number | null {
+  const m = /^(\d{1,2}):(\d{2})/.exec(time.trim());
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
 }
 
-function MealItem({ item, mealColor }: { item: DietItem; mealColor: string }) {
+/** Id da próxima refeição (primeira com horário ainda por vir). */
+function nextMealId(meals: Meal[]): string | null {
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const next = meals.find(m => {
+    if (m.isAlternative || m.isSupp || m.isFasted) return false;
+    const t = minutesOf(m.time);
+    return t !== null && t >= nowMin;
+  });
+  return next?.id ?? null;
+}
+
+const useStyles = makeStyles(c => ({
+  container: { flex: 1, backgroundColor: c.bg },
+  scroll: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.sm },
+  block: { marginTop: Spacing.xl },
+  stateWrap: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.xxxl },
+  pendingText: { marginTop: Spacing.md, fontFamily: Font.body, fontSize: FontSize.base, color: c.textMuted, lineHeight: LineHeight.base },
+  banner: { marginTop: Spacing.md, fontFamily: Font.body, fontSize: FontSize.md, color: c.textMuted, lineHeight: LineHeight.md },
+  saveFailed: { marginTop: Spacing.md, fontFamily: Font.body, fontSize: FontSize.md, color: c.red },
+  kcalRow: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.sm },
+  kcal: {
+    fontFamily: Font.condSemi, fontSize: FontSize.hero, lineHeight: numberLineHeight(FontSize.hero),
+    letterSpacing: Tracking.tighter, color: c.text, includeFontPadding: false, fontVariant: ['tabular-nums'],
+  },
+  kcalUnit: { fontFamily: Font.body, fontSize: FontSize.base, color: c.textMuted, paddingBottom: Spacing.sm },
+  macroNote: { marginTop: Spacing.md, fontFamily: Font.body, fontSize: FontSize.sm, color: c.textMuted, lineHeight: LineHeight.sm },
+  meals: { marginTop: Spacing.xxl, borderTopWidth: 1, borderTopColor: c.border },
+  meal: { borderBottomWidth: 1, borderBottomColor: c.border },
+  mealHead: { minHeight: Touch.primary, flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.sm },
+  mealHover: { backgroundColor: c.cardHover },
+  stripe: { width: 3, alignSelf: 'stretch' },
+  mealTime: {
+    width: 48, fontFamily: Font.condMedium, fontSize: FontSize.lg, color: c.textMuted,
+    includeFontPadding: false, fontVariant: ['tabular-nums'],
+  },
+  mealInfo: { flex: 1, gap: 2 },
+  mealTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flexWrap: 'wrap' },
+  mealName: { fontFamily: Font.bodyMedium, fontSize: FontSize.base, color: c.text },
+  mealSub: { fontFamily: Font.body, fontSize: FontSize.sm, color: c.textMuted },
+  mealKcal: {
+    fontFamily: Font.condSemi, fontSize: FontSize.lg, color: c.text, includeFontPadding: false,
+    fontVariant: ['tabular-nums'],
+  },
+  mealPlus: {
+    width: 28, textAlign: 'center', fontFamily: Font.condMedium, fontSize: FontSize.xl,
+    color: c.textMuted, includeFontPadding: false,
+  },
+  items: { backgroundColor: c.cardAlt, marginBottom: Spacing.sm },
+  note: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, fontFamily: Font.body, fontSize: FontSize.sm, color: c.textMuted, lineHeight: LineHeight.sm },
+  item: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderTopWidth: 1, borderTopColor: c.border },
+  itemTop: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md },
+  itemInfo: { flex: 1 },
+  itemName: { fontFamily: Font.bodyMedium, fontSize: FontSize.md, color: c.text },
+  itemDetail: { fontFamily: Font.body, fontSize: FontSize.sm, color: c.textMuted, marginTop: 2 },
+  itemKcal: { fontFamily: Font.condSemi, fontSize: FontSize.base, color: c.text, includeFontPadding: false },
+  itemActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.xs },
+  panel: { marginTop: Spacing.sm, gap: Spacing.sm },
+  panelTitle: {
+    fontFamily: Font.condSemi, fontSize: FontSize.base, color: c.text,
+    textTransform: 'uppercase', letterSpacing: Tracking.caps,
+  },
+  sub: { backgroundColor: c.card, padding: Spacing.md, gap: 2 },
+  subTop: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.sm },
+  subName: { flex: 1, fontFamily: Font.bodyMedium, fontSize: FontSize.sm, color: c.text },
+  subKcal: { fontFamily: Font.condSemi, fontSize: FontSize.md, color: c.text },
+  subQty: { fontFamily: Font.body, fontSize: FontSize.sm, color: c.textMuted },
+  subNote: { fontFamily: Font.body, fontSize: FontSize.sm, color: c.textMuted, lineHeight: LineHeight.sm },
+  tipText: { fontFamily: Font.body, fontSize: FontSize.sm, color: c.textMuted, lineHeight: LineHeight.sm },
+  hydration: { marginTop: Spacing.xxl, gap: Spacing.sm },
+  hydrationTitle: {
+    fontFamily: Font.condSemi, fontSize: FontSize.xl, color: c.text,
+    textTransform: 'uppercase', letterSpacing: Tracking.caps,
+  },
+  hydrationText: { fontFamily: Font.body, fontSize: FontSize.base, color: c.textMuted, lineHeight: LineHeight.base },
+  skel: { marginTop: Spacing.md },
+}));
+
+function MealItem({ item }: { item: DietItem }) {
+  const styles = useStyles();
   const [showTip, setShowTip] = useState(false);
   const [showSubs, setShowSubs] = useState(false);
   const hasSubs = item.subs.length > 0;
 
   return (
-    <View style={styles.mealItem}>
-      <View style={styles.mealItemRow}>
-        <View style={styles.mealItemInfo}>
-          <Text style={styles.mealItemName}>{item.name}</Text>
-          <View style={styles.mealItemMeta}>
-            <Text style={styles.mealItemDetail}>{item.detail}</Text>
-            {item.kcal > 0 && (
-              <Text style={[styles.mealItemKcal, { color: mealColor }]}>{item.kcal} kcal</Text>
-            )}
-          </View>
+    <View style={styles.item}>
+      <View style={styles.itemTop}>
+        <View style={styles.itemInfo}>
+          <Text style={styles.itemName}>{item.name}</Text>
+          <Text style={styles.itemDetail}>{item.detail}</Text>
         </View>
-        <View style={styles.mealItemActions}>
-          {hasSubs && (
-            <TouchableOpacity
-              onPress={() => { setShowSubs(v => !v); setShowTip(false); }}
-              style={[styles.mealItemBtn, showSubs && { backgroundColor: mealColor + '22' }]}
-            >
-              <Text style={[styles.mealItemBtnText, { color: showSubs ? mealColor : Colors.textFaint }]}>⇄</Text>
-            </TouchableOpacity>
-          )}
-          {item.tip ? (
-            <TouchableOpacity
-              onPress={() => { setShowTip(v => !v); setShowSubs(false); }}
-              style={[styles.mealItemBtn, showTip && { backgroundColor: Colors.surface }]}
-            >
-              <Text style={[styles.mealItemBtnText, { color: showTip ? mealColor : Colors.textFaint }]}>ℹ</Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
+        {item.kcal > 0 && <Text style={styles.itemKcal}>{item.kcal} kcal</Text>}
       </View>
-      {showTip && (
-        <View style={styles.tipPanel}>
-          <Text style={styles.tipText}>{item.tip}</Text>
+      {(hasSubs || !!item.tip) && (
+        <View style={styles.itemActions}>
+          {hasSubs && (
+            <LinkButton
+              label={showSubs ? 'Ocultar substitutos' : 'Substitutos'}
+              onPress={() => { setShowSubs(v => !v); setShowTip(false); }}
+            />
+          )}
+          {!!item.tip && (
+            <LinkButton
+              label={showTip ? 'Ocultar dica' : 'Dica'}
+              onPress={() => { setShowTip(v => !v); setShowSubs(false); }}
+            />
+          )}
         </View>
       )}
-      {showSubs && <SubsPanel item={item} color={mealColor} />}
+      {showTip && <Text style={styles.tipText}>{item.tip}</Text>}
+      {showSubs && (
+        <View style={styles.panel}>
+          <Text style={styles.panelTitle}>Substitutos possíveis</Text>
+          {item.subs.map((sub, i) => (
+            <View key={i} style={styles.sub}>
+              <View style={styles.subTop}>
+                <Text style={styles.subName}>{sub.name}</Text>
+                {/* Substituto com kcal 0 não mostra calorias (armadilha 10) */}
+                {sub.kcal > 0 && <Text style={styles.subKcal}>{sub.kcal} kcal</Text>}
+              </View>
+              <Text style={styles.subQty}>{sub.qty}</Text>
+              <Text style={styles.subNote}>{sub.note}</Text>
+            </View>
+          ))}
+        </View>
+      )}
     </View>
   );
 }
 
-function MealCard({ meal }: { meal: Meal }) {
-  const [open, setOpen] = useState(false);
+function MealCard({ meal, isNext }: { meal: Meal; isNext: boolean }) {
+  const styles = useStyles();
+  const { resolveAccent } = useTheme();
+  const [open, setOpen] = useState(isNext);
   const isSpecial = meal.isSupp || meal.isFasted;
+  const accent = resolveAccent(meal.color);
+
+  const sub = isSpecial
+    ? (meal.isSupp ? 'Creatina · Psyllium' : 'Água · Café pré-treino opcional')
+    : `P ${meal.macros.p}g · C ${meal.macros.c}g · G ${meal.macros.g}g${meal.isAlternative ? ' · Opção alternativa' : ''}`;
 
   return (
-    <View style={styles.mealCardWrap}>
-      <TouchableOpacity
+    <View style={styles.meal}>
+      <Pressable
         onPress={() => setOpen(v => !v)}
-        style={[styles.mealCard, open && { borderColor: meal.color + '44', borderWidth: 1 }]}
-        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel={`${meal.label}, ${meal.time}${meal.kcal > 0 ? `, ${meal.kcal} quilocalorias` : ''}`}
+        accessibilityState={{ expanded: open }}
+        style={({ pressed }) => [styles.mealHead, pressed && styles.mealHover]}
       >
-        <Text style={styles.mealIcon}>{meal.icon}</Text>
+        <View style={[styles.stripe, { backgroundColor: accent }]} />
+        <Text style={styles.mealTime}>{meal.time}</Text>
         <View style={styles.mealInfo}>
           <View style={styles.mealTitleRow}>
-            <Text style={[styles.mealTitle, isSpecial && { color: meal.color }]}>{meal.label}</Text>
-            {meal.kcal > 0
-              ? <Text style={[styles.mealKcal, { color: meal.color }]}>{meal.kcal} kcal</Text>
-              : <View style={[styles.badge, { backgroundColor: meal.color + '22' }]}>
-                  <Text style={[styles.badgeText, { color: meal.color }]}>
-                    {meal.isSupp ? 'DIÁRIO' : 'JEJUM'}
-                  </Text>
-                </View>
-            }
+            <Text style={styles.mealName}>{meal.label}</Text>
+            {isNext && <Tag label="Próxima" />}
           </View>
-          {!isSpecial && (
-            <View style={styles.mealMacros}>
-              <Text style={styles.mealTime}>🕐 {meal.time}</Text>
-              <Text style={[styles.mealMacro, { color: Colors.pushColor }]}>P {meal.macros.p}g</Text>
-              <Text style={[styles.mealMacro, { color: Colors.pullColor }]}>C {meal.macros.c}g</Text>
-              <Text style={[styles.mealMacro, { color: Colors.green }]}>G {meal.macros.g}g</Text>
-            </View>
-          )}
-          {isSpecial && (
-            <Text style={styles.mealSubtitle}>
-              {meal.isSupp ? 'Creatina · Psyllium' : 'Água · Café pré-treino opcional'}
-            </Text>
-          )}
+          <Text style={styles.mealSub}>{sub}</Text>
         </View>
-        <Text style={[styles.chevron, open && styles.chevronOpen]}>›</Text>
-      </TouchableOpacity>
+        {meal.kcal > 0
+          ? <Text style={styles.mealKcal}>{meal.kcal} kcal</Text>
+          : <Tag label={meal.isSupp ? 'Diário' : 'Jejum'} />}
+        <Text style={styles.mealPlus}>{open ? '−' : '+'}</Text>
+      </Pressable>
 
       {open && (
-        <View style={styles.mealItems}>
-          {meal.note ? (
-            <View style={styles.mealNote}>
-              <Text style={styles.mealNoteText}>📝 {meal.note}</Text>
-            </View>
-          ) : null}
-          {meal.items.map((item, i) => (
-            <MealItem key={i} item={item} mealColor={meal.color} />
-          ))}
+        <View style={styles.items}>
+          {meal.note ? <Text style={styles.note}>{meal.note}</Text> : null}
+          {meal.items.map((item, i) => <MealItem key={i} item={item} />)}
         </View>
       )}
     </View>
@@ -137,288 +209,137 @@ function MealCard({ meal }: { meal: Meal }) {
 // Dieta do Luiz (definida no código) no mesmo formato dos planos do banco
 function legacyVariants(): DietVariant[] {
   return [
-    { key: 'A', label: 'A', banner: '🫘 Dieta A — Com feijão ou lentilha no almoço', meals: makeMeals('A') },
-    { key: 'B', label: 'B', banner: '🌰 Dieta B — Com grão-de-bico (sem feijão/lentilha)', meals: makeMeals('B') },
+    { key: 'A', label: 'A', banner: 'Dieta A — Com feijão ou lentilha no almoço', meals: makeMeals('A') },
+    { key: 'B', label: 'B', banner: 'Dieta B — Com grão-de-bico (sem feijão/lentilha)', meals: makeMeals('B') },
   ];
 }
 
 export function DietScreen() {
-  const navigation = useNavigation<any>();
-  const { profile, refreshProfile } = useAuth();
-  const [variant, setVariant] = useState<'A' | 'B'>(profile?.diet_variant ?? 'A');
-  const [dbPlan, setDbPlan] = useState<DietPlan | null>(null);
-  const [planLoading, setPlanLoading] = useState<boolean>(!!profile?.diet_plan_id);
+  const styles = useStyles();
+  const { colors } = useTheme();
+  const { status, error, plan: dbPlan, variant, changeVariant, retry } = useDiet();
+  const timerInsets = useTimerInsets();
+  const [saveFailed, setSaveFailed] = useState(false);
 
-  const planId = profile?.diet_plan_id ?? null;
-  useEffect(() => {
-    if (!planId) { setDbPlan(null); setPlanLoading(false); return; }
-    let alive = true;
-    setPlanLoading(true);
-    fetchDietPlan(planId)
-      .then(p => { if (alive) setDbPlan(p); })
-      .catch(() => { if (alive) setDbPlan(null); })
-      .finally(() => { if (alive) setPlanLoading(false); });
-    return () => { alive = false; };
-  }, [planId]);
-
-  const isLegacy = !planId;
+  // Dieta fixa do código só com status 'fixed' (perfil carregado e diet_fixed = true)
+  const isLegacy = status === 'fixed';
   const variants: DietVariant[] = isLegacy ? legacyVariants() : (dbPlan?.data.variants ?? []);
   const current = variants.find(v => v.key === variant) ?? variants[0];
   const meals = current?.meals ?? [];
+  // Totais ignoram refeições com isAlternative (armadilha 10): calcTotals já filtra.
   const totals = calcTotals(meals);
 
   const handleVariantChange = async (v: 'A' | 'B') => {
-    setVariant(v);
-    if (profile) {
-      await updateDietVariant(profile.id, v);
-      refreshProfile();
-    }
+    setSaveFailed(false);
+    const ok = await changeVariant(v);
+    if (!ok) setSaveFailed(true);
   };
 
-  const header = (sub: string, title: string, withToggle: boolean) => (
-    <View style={styles.header}>
-      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-        <Text style={styles.backText}>‹</Text>
-      </TouchableOpacity>
-      <View style={styles.headerCenter}>
-        <Text style={styles.headerSub}>{sub}</Text>
-        <Text style={styles.headerTitle}>{title}</Text>
-      </View>
-      {withToggle && variants.length > 1 && (
-        <View style={styles.variantToggle}>
-          {variants.map(v => (
-            <TouchableOpacity
-              key={v.key}
-              onPress={() => handleVariantChange(v.key)}
-              style={[styles.variantBtn, current?.key === v.key && { backgroundColor: Colors.green }]}
-            >
-              <Text style={[styles.variantText, current?.key === v.key && { color: '#fff' }]}>{v.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-    </View>
-  );
-
-  // Dieta ainda não criada para este usuário → tela de pendência
-  if (profile && profile.diet_enabled === false) {
+  // Dieta ainda não criada para este usuário
+  if (status === 'pending') {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
-        {header('Plano Alimentar', 'Dieta', false)}
-        <View style={styles.pendingWrap}>
-          <View style={styles.pendingIconCircle}>
-            <Text style={styles.pendingIcon}>🥗</Text>
-          </View>
-          <Text style={styles.pendingTitle}>Dieta em criação</Text>
-          <Text style={styles.pendingText}>
-            Seu plano alimentar personalizado ainda está sendo preparado.
-            Assim que estiver pronto, ele aparecerá aqui automaticamente.
-          </Text>
-          <View style={styles.pendingPill}>
-            <View style={styles.pendingDot} />
-            <Text style={styles.pendingPillText}>Pendente</Text>
-          </View>
+        <ScreenHeader title="Dieta" />
+        <View style={styles.stateWrap}>
+          <DayHeadline label="Em preparação" color={colors.restColor} />
+          <Text style={styles.pendingText}>Sua dieta ainda está sendo preparada pela nutricionista.</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  if (planLoading || (!isLegacy && !current)) {
+  if (status === 'loading') {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
-        {header('Plano Alimentar', 'Dieta', false)}
-        {planLoading
-          ? <ActivityIndicator color={Colors.textMuted} style={{ flex: 1 }} />
-          : <View style={styles.pendingWrap}><Text style={styles.pendingText}>Não foi possível carregar o plano alimentar. Tente novamente em instantes.</Text></View>}
+        <ScreenHeader title="Dieta" />
+        <View style={styles.stateWrap}>
+          <Skeleton width={220} height={72} />
+          {[0, 1, 2, 3, 4].map(i => <Skeleton key={i} height={56} style={styles.skel} />)}
+        </View>
       </SafeAreaView>
     );
   }
 
-  const bannerColor = current.key === 'A' ? Colors.green : Colors.pullColor;
+  if (status === 'error' || !current) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <ScreenHeader title="Dieta" />
+        <View style={styles.stateWrap}>
+          <ErrorBlock
+            title="Não foi possível carregar sua dieta."
+            cause={error ?? 'Tente novamente em instantes.'}
+            onRetry={retry}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const nextId = nextMealId(meals);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {header(isLegacy ? 'Déficit Calórico' : (dbPlan?.data.name ?? 'Plano Alimentar'), 'Plano Alimentar', true)}
+      <ScreenHeader
+        title="Dieta"
+        subtitle={isLegacy ? 'Déficit calórico' : (dbPlan?.data.name ?? 'Plano alimentar')}
+      />
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.scroll, { paddingBottom: timerInsets.bottom }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {timerInsets.top > 0 && <View style={{ height: timerInsets.top }} />}
+        {variants.length > 1 && (
+          <Segmented
+            label="Variante da dieta"
+            options={variants.map(v => ({ value: v.key, label: variantLabel(v.label) }))}
+            value={current.key}
+            onChange={handleVariantChange}
+          />
+        )}
+        {saveFailed && <Text style={styles.saveFailed}>Não foi possível salvar sua escolha.</Text>}
+        {!!current.banner && <Text style={styles.banner}>{plain(current.banner)}</Text>}
 
-        {/* Variant banner */}
-        <View style={[styles.variantBanner, { backgroundColor: current.key === 'A' ? '#1A2A1A' : '#1A1A2A' }]}>
-          <Text style={{ color: bannerColor, fontSize: FontSize.sm, lineHeight: 18 }}>{current.banner}</Text>
-        </View>
-
-        {/* Macro summary */}
-        <View style={styles.macroCard}>
-          <Text style={styles.macroTitle}>
-            {isLegacy ? 'Meta Diária — Perda de Gordura' : `Estimativa diária — ${dbPlan?.data.subtitle ?? ''}`}
+        {/* Total do dia */}
+        <View style={styles.block}>
+          <View style={styles.kcalRow}>
+            <Text style={styles.kcal} numberOfLines={1} maxFontSizeMultiplier={1.2}>{fmt(totals.kcal)}</Text>
+            <Text style={styles.kcalUnit}>kcal no dia</Text>
+          </View>
+          <View style={styles.block}>
+            <NumbersRow
+              valueSize={FontSize.xxl}
+              items={[
+                { value: `${totals.p}g`, label: isLegacy ? 'proteína (2 g/kg)' : 'proteína' },
+                { value: `${totals.c}g`, label: 'carboidrato' },
+                { value: `${totals.g}g`, label: 'gordura' },
+              ]}
+            />
+          </View>
+          <Text style={styles.macroNote}>
+            {isLegacy
+              ? `Meta diária de perda de gordura: TMB Mifflin × 1,65 (ativo, 1h de treino 6×/semana) − 20% ≈ ${fmt(totals.kcal)} kcal.`
+              : `${dbPlan?.data.subtitle ? `${dbPlan.data.subtitle}. ` : ''}${dbPlan?.data.note ?? ''}`}
           </Text>
-          <View style={styles.macroRow}>
-            {[
-              { label: 'Calorias', value: `${totals.kcal}`, unit: 'kcal', color: Colors.orange },
-              { label: 'Proteína', value: `${totals.p}g`, unit: isLegacy ? '2g/kg' : '', color: Colors.pushColor },
-              { label: 'Carbo', value: `${totals.c}g`, unit: '', color: Colors.pullColor },
-              { label: 'Gordura', value: `${totals.g}g`, unit: '', color: Colors.green },
-            ].map(m => (
-              <View key={m.label} style={styles.macroItem}>
-                <Text style={[styles.macroValue, { color: m.color }]}>{m.value}</Text>
-                {m.unit ? <Text style={styles.macroUnit}>{m.unit}</Text> : null}
-                <Text style={styles.macroLabel}>{m.label}</Text>
-              </View>
-            ))}
-          </View>
-          <View style={styles.macroNote}>
-            <Text style={styles.macroNoteText}>
-              {isLegacy
-                ? `💡 TMB Mifflin × 1.65 (ativo, 1h treino 6×/sem) − 20% ≈ ${totals.kcal} kcal`
-                : `💡 ${dbPlan?.data.note ?? ''}`}
-            </Text>
-          </View>
         </View>
 
-        {/* Meals */}
-        {meals.map(meal => <MealCard key={meal.id} meal={meal} />)}
+        {/* Refeições */}
+        <View style={styles.meals}>
+          {meals.map(meal => (
+            <MealCard key={`${current.key}-${meal.id}`} meal={meal} isNext={meal.id === nextId} />
+          ))}
+        </View>
 
-        {/* Hydration */}
-        <View style={styles.hydrationCard}>
-          <Text style={styles.hydrationTitle}>💧 Hidratação</Text>
+        {/* Hidratação */}
+        <View style={styles.hydration}>
+          <Text style={styles.hydrationTitle}>Hidratação</Text>
           <Text style={styles.hydrationText}>
             {isLegacy
               ? 'Mínimo 3,5L de água por dia. Em dias de treino, adicione 500ml por hora de exercício. Ao tomar psyllium, conte os 300ml de cada dose.'
-              : 'Beba água ao longo do dia e reforce nos dias de treino, especialmente ao acordar, já que o treino é em jejum.'}
+              : 'Beba água ao longo do dia e reforce nos dias de treino.'}
           </Text>
         </View>
-
-        <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  mealNote: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 4 },
-  mealNoteText: { fontSize: FontSize.sm, color: Colors.textMuted, lineHeight: 18 },
-  pendingWrap: {
-    flex: 1, alignItems: 'center', justifyContent: 'center',
-    paddingHorizontal: 32, paddingBottom: 80,
-  },
-  pendingIconCircle: {
-    width: 96, height: 96, borderRadius: 48, backgroundColor: Colors.card,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 20,
-  },
-  pendingIcon: { fontSize: 44, opacity: 0.45 },
-  pendingTitle: { fontSize: FontSize.xl, fontWeight: '700', color: Colors.text, marginBottom: 10 },
-  pendingText: {
-    fontSize: FontSize.base, color: Colors.textMuted, textAlign: 'center', lineHeight: 22, marginBottom: 24,
-  },
-  pendingPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: Colors.card, borderRadius: 500, paddingHorizontal: 14, paddingVertical: 7,
-  },
-  pendingDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.orange },
-  pendingPillText: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.textMuted },
-  container: { flex: 1, backgroundColor: Colors.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 8,
-    gap: 10,
-  },
-  backBtn: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: Colors.card,
-    alignItems: 'center', justifyContent: 'center',
-    flexShrink: 0,
-  },
-  backText: { fontSize: 22, color: Colors.text, lineHeight: 28 },
-  headerCenter: { flex: 1 },
-  headerSub: { fontSize: FontSize.xs, color: Colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.8 },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: Colors.text },
-  variantToggle: {
-    flexDirection: 'row',
-    backgroundColor: Colors.card,
-    borderRadius: 10,
-    padding: 3,
-    gap: 3,
-  },
-  variantBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  variantText: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.textMuted },
-  scroll: { padding: 16, gap: 8 },
-  variantBanner: {
-    borderRadius: Radius.md,
-    padding: 10,
-    paddingHorizontal: 14,
-  },
-  macroCard: {
-    backgroundColor: Colors.card,
-    borderRadius: Radius.xl,
-    padding: 18,
-  },
-  macroTitle: { fontSize: FontSize.xs, color: Colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12 },
-  macroRow: { flexDirection: 'row', gap: 8 },
-  macroItem: {
-    flex: 1,
-    backgroundColor: Colors.surface,
-    borderRadius: 10,
-    padding: 10,
-    alignItems: 'center',
-  },
-  macroValue: { fontSize: FontSize.base, fontWeight: '800' },
-  macroUnit: { fontSize: FontSize.xs, color: Colors.textFaint, marginTop: 2 },
-  macroLabel: { fontSize: FontSize.xs, color: Colors.textFaint, marginTop: 2 },
-  macroNote: { backgroundColor: Colors.surface, borderRadius: 10, padding: 10, marginTop: 12 },
-  macroNoteText: { fontSize: FontSize.xs, color: Colors.textFaint, lineHeight: 16 },
-  mealCardWrap: { borderRadius: Radius.lg, overflow: 'hidden' },
-  mealCard: {
-    backgroundColor: Colors.card,
-    borderRadius: Radius.lg,
-    padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  mealIcon: { fontSize: 24, flexShrink: 0 },
-  mealInfo: { flex: 1 },
-  mealTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  mealTitle: { fontSize: FontSize.base, fontWeight: '700', color: Colors.text, flex: 1 },
-  mealKcal: { fontSize: FontSize.md, fontWeight: '700' },
-  badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
-  badgeText: { fontSize: FontSize.xs, fontWeight: '700' },
-  mealMacros: { flexDirection: 'row', gap: 10, marginTop: 4, flexWrap: 'wrap' },
-  mealTime: { fontSize: FontSize.xs, color: Colors.textFaint },
-  mealMacro: { fontSize: FontSize.xs, fontWeight: '600' },
-  mealSubtitle: { fontSize: FontSize.sm, color: Colors.textFaint, marginTop: 3 },
-  chevron: { fontSize: 18, color: Colors.textFaint },
-  chevronOpen: { transform: [{ rotate: '90deg' }] },
-  mealItems: { backgroundColor: Colors.cardAlt },
-  mealItem: { borderTopWidth: 1, borderTopColor: Colors.card },
-  mealItemRow: { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 8 },
-  mealItemInfo: { flex: 1 },
-  mealItemName: { fontSize: FontSize.md, fontWeight: '600', color: Colors.text },
-  mealItemMeta: { flexDirection: 'row', gap: 10, marginTop: 3 },
-  mealItemDetail: { fontSize: FontSize.sm, color: Colors.textFaint },
-  mealItemKcal: { fontSize: FontSize.sm, fontWeight: '600' },
-  mealItemActions: { flexDirection: 'row', gap: 4 },
-  mealItemBtn: { padding: 6, borderRadius: 8 },
-  mealItemBtnText: { fontSize: 14 },
-  tipPanel: { paddingHorizontal: 12, paddingBottom: 12 },
-  tipText: { fontSize: FontSize.sm, color: Colors.textMuted, lineHeight: 18 },
-  subsPanel: { paddingHorizontal: 12, paddingBottom: 12 },
-  subsTitle: { fontSize: FontSize.xs, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 },
-  subCard: { backgroundColor: Colors.card, borderRadius: 10, padding: 10, marginBottom: 6 },
-  subHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  subName: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.text, flex: 1, marginRight: 8 },
-  subKcal: { fontSize: FontSize.sm, fontWeight: '700', flexShrink: 0 },
-  subQty: { fontSize: FontSize.sm, color: Colors.textFaint, marginTop: 2 },
-  subNote: { fontSize: FontSize.sm, color: Colors.textMuted, marginTop: 4, lineHeight: 16 },
-  hydrationCard: { backgroundColor: Colors.card, borderRadius: Radius.lg, padding: 16 },
-  hydrationTitle: { fontSize: FontSize.md, fontWeight: '600', color: Colors.text, marginBottom: 6 },
-  hydrationText: { fontSize: FontSize.sm, color: Colors.textMuted, lineHeight: 18 },
-});

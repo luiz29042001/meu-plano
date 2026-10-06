@@ -1,0 +1,32 @@
+// Bloco de erro (spec §4): frase em `text`, causa em `textMuted`, faixa `red`
+// de 6px à esquerda e botão de contorno "Tentar de novo".
+import React from 'react';
+import { Text, View } from 'react-native';
+import { makeStyles } from '../contexts/ThemeContext';
+import { Font, FontSize, LineHeight, Spacing } from '../utils/theme';
+import { OutlineButton } from './Buttons';
+
+const useStyles = makeStyles(c => ({
+  wrap: { flexDirection: 'row', gap: Spacing.lg },
+  stripe: { width: 6, alignSelf: 'stretch', backgroundColor: c.red },
+  body: { flex: 1, gap: Spacing.sm },
+  title: { fontFamily: Font.bodySemi, fontSize: FontSize.lg, color: c.text },
+  cause: { fontFamily: Font.body, fontSize: FontSize.base, color: c.textMuted, lineHeight: LineHeight.base },
+  retry: { marginTop: Spacing.sm },
+}));
+
+export function ErrorBlock({
+  title, cause, onRetry,
+}: { title: string; cause?: string | null; onRetry?: () => void }) {
+  const styles = useStyles();
+  return (
+    <View style={styles.wrap} accessibilityRole="alert">
+      <View style={styles.stripe} />
+      <View style={styles.body}>
+        <Text style={styles.title}>{title}</Text>
+        {cause ? <Text style={styles.cause}>{cause}</Text> : null}
+        {onRetry ? <OutlineButton label="Tentar de novo" onPress={onRetry} style={styles.retry} /> : null}
+      </View>
+    </View>
+  );
+}

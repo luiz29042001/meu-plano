@@ -12,7 +12,7 @@
 ## 1. Supabase — Setup
 
 1. Crie um projeto em https://supabase.com
-2. Vá em **SQL Editor** e execute todo o conteúdo de `supabase/schema.sql`
+2. Aplique as migrações de `supabase/migrations/` em ordem (Supabase CLI: `supabase db push`). O projeto de produção já tem as migrações antigas aplicadas: veja `docs/tech/correcoes-revisao-2026-10-05-backend.md` antes de usar o CLI nele.
 3. Em **Authentication → Providers → Google**, ative e adicione suas credenciais OAuth
 4. Copie `Project URL` e `anon key` de **Settings → API**
 

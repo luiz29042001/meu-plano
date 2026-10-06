@@ -3,8 +3,8 @@
   "short_name": "Meu Plano",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1A1A1C",
-  "theme_color": "#1A1A1C",
+  "background_color": "#222221",
+  "theme_color": "#222221",
   "icons": [
     { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
     { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }

@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
 import {
   fetchWorkoutDays,
@@ -12,40 +13,60 @@ import {
   saveExerciseNote,
 } from '../services/workout';
 import { getNextWorkoutDay } from '../utils/workoutSequence';
-import type { WorkoutDay, ExerciseCheck, WorkoutCompletion, UserStats } from '../types';
-
 import { todayISO } from '../utils/date';
+import { friendlyError, isTimeoutError, withTimeout, MSG_NETWORK, isNetworkError } from '../utils/errors';
+import type { WorkoutDay, ExerciseCheck, WorkoutCompletion, UserStats, WorkoutStatus } from '../types';
 
-function todayStr() {
-  return todayISO();
+const SAVE_TIMEOUT_MS = 20000;
+
+export interface UseWorkoutOptions {
+  /**
+   * Recarrega em silêncio (sem spinner de tela cheia) sempre que a tela volta
+   * a ficar em foco. Use na Home, para refletir o treino recém-concluído.
+   */
+  refreshOnFocus?: boolean;
 }
 
-export function useWorkout() {
-  const { user, profile } = useAuth();
-  const programKey = profile?.program_id ?? 'default';
+export function useWorkout(options: UseWorkoutOptions = {}) {
+  const { refreshOnFocus = false } = options;
+  // Depende de userId (string), nunca do objeto `user`: o supabase-js cria um
+  // objeto novo a cada volta à aba / renovação de token, o que recarregava tudo.
+  const { userId, profile, profileStatus } = useAuth();
+  const profilePending = profileStatus === 'idle' || profileStatus === 'loading';
+  // Programa só conta quando o perfil carregou. Perfil com erro → undefined (RLS decide).
+  const programId: number | null | undefined =
+    profileStatus === 'ready' ? (profile?.program_id ?? null) : undefined;
+
   const [days, setDays] = useState<WorkoutDay[]>([]);
   const [checks, setChecks] = useState<Record<number, boolean>>({});
   const [todayCompletion, setTodayCompletion] = useState<WorkoutCompletion | null>(null);
   const [lastCompletion, setLastCompletion] = useState<WorkoutCompletion | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [notes, setNotes] = useState<Record<number, string>>({});
-  const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const today = todayStr();
+  const loadReq = useRef(0);   // descarta respostas de cargas antigas
+  const notesReq = useRef(0);  // descarta anotações antigas que chegam depois de um saveNote
+
+  const today = todayISO();
 
   const load = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
+    if (!userId || profilePending) return;
+    const req = ++loadReq.current;
+    setRefreshing(true);
     setError(null);
     try {
       const [workoutDays, exerciseChecks, completion, last, userStats] = await Promise.all([
-        fetchWorkoutDays(),
-        fetchExerciseChecks(user.id, today),
-        fetchTodayCompletion(user.id, today),
-        fetchLastCompletion(user.id),
-        fetchUserStats(user.id),
+        fetchWorkoutDays(programId),
+        fetchExerciseChecks(userId, today),
+        fetchTodayCompletion(userId, today),
+        fetchLastCompletion(userId),
+        fetchUserStats(userId),
       ]);
+      if (req !== loadReq.current) return;
       setDays(workoutDays);
       const checkMap: Record<number, boolean> = {};
       exerciseChecks.forEach((c: ExerciseCheck) => { checkMap[c.exercise_id] = c.checked; });
@@ -53,54 +74,74 @@ export function useWorkout() {
       setTodayCompletion(completion);
       setLastCompletion(last);
       setStats(userStats);
-      // Anotações carregadas à parte: uma falha aqui nunca impede o treino de abrir
-      fetchExerciseNotes(user.id).then(setNotes).catch(() => {});
-    } catch (e: any) {
-      setError(e.message ?? 'Erro ao carregar dados');
+      setHasLoaded(true);
+      // Anotações à parte: uma falha aqui nunca impede o treino de abrir
+      const nReq = ++notesReq.current;
+      fetchExerciseNotes(userId)
+        .then(n => { if (nReq === notesReq.current) setNotes(n); })
+        .catch(() => {});
+    } catch (e) {
+      if (req !== loadReq.current) return;
+      setError(friendlyError(e, 'Não foi possível carregar seus treinos.'));
     } finally {
-      setLoading(false);
+      if (req === loadReq.current) setRefreshing(false);
     }
-  }, [user, today, programKey]);
+  }, [userId, profilePending, programId, today]);
 
   useEffect(() => { load(); }, [load]);
 
+  // Recarga silenciosa ao voltar o foco (ignora o primeiro foco: o efeito acima já carrega).
+  const loadRef = useRef(load);
+  loadRef.current = load;
+  const firstFocus = useRef(true);
+  useFocusEffect(useCallback(() => {
+    if (!refreshOnFocus) return;
+    if (firstFocus.current) { firstFocus.current = false; return; }
+    loadRef.current();
+  }, [refreshOnFocus]));
+
   const toggleCheck = useCallback(async (exerciseId: number, currentValue: boolean) => {
-    if (!user) return;
+    if (!userId) return;
     const newValue = !currentValue;
     setChecks(prev => ({ ...prev, [exerciseId]: newValue }));
     try {
-      await upsertExerciseCheck(user.id, exerciseId, today, newValue);
+      await upsertExerciseCheck(userId, exerciseId, today, newValue);
     } catch {
       setChecks(prev => ({ ...prev, [exerciseId]: currentValue }));
     }
-  }, [user, today]);
+  }, [userId, today]);
 
+  /**
+   * Marca o treino do dia. Devolve true se salvou. Em caso de falha, `saveError`
+   * traz a mensagem em pt-BR (no timeout avisa que pode ter sido salvo; repetir é seguro).
+   */
   const completeWorkout = useCallback(async (workoutDayId: number): Promise<boolean> => {
-    if (!user) return false;
+    if (!userId) return false;
+    setSaveError(null);
     try {
-      // Limite de 20s: se a rede travar, o usuário recebe aviso em vez de ficar sem resposta
-      const completion = await Promise.race([
-        markWorkoutComplete(user.id, workoutDayId, today),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 20000)),
-      ]);
+      const completion = await withTimeout(markWorkoutComplete(userId, workoutDayId, today), SAVE_TIMEOUT_MS);
       setTodayCompletion(completion);
       // Atualizações secundárias não bloqueiam a confirmação
-      fetchLastCompletion(user.id).then(setLastCompletion).catch(() => {});
-      fetchUserStats(user.id).then(setStats).catch(() => {});
+      fetchLastCompletion(userId).then(setLastCompletion).catch(() => {});
+      fetchUserStats(userId).then(setStats).catch(() => {});
       return true;
-    } catch (e: any) {
-      setError(e?.message ?? 'Erro ao salvar');
+    } catch (e) {
+      setSaveError(
+        isTimeoutError(e)
+          ? 'A conexão demorou. O treino pode já ter sido salvo; tocar de novo é seguro.'
+          : isNetworkError(e)
+            ? MSG_NETWORK
+            : 'Não foi possível salvar. Tente de novo.'
+      );
       return false;
     }
-  }, [user, today]);
+  }, [userId, today]);
 
   const saveNote = useCallback(async (exerciseId: number, text: string): Promise<boolean> => {
-    if (!user) return false;
+    if (!userId) return false;
+    notesReq.current++; // uma carga de anotações em andamento não sobrescreve esta
     try {
-      await Promise.race([
-        saveExerciseNote(user.id, exerciseId, text),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 20000)),
-      ]);
+      await withTimeout(saveExerciseNote(userId, exerciseId, text), SAVE_TIMEOUT_MS);
       setNotes(prev => {
         const next = { ...prev };
         const t = text.trim();
@@ -111,26 +152,42 @@ export function useWorkout() {
     } catch {
       return false;
     }
-  }, [user]);
+  }, [userId]);
 
-  // Próximo treino sugerido: baseado no ÚLTIMO treino concluído (sequência PPL),
-  // não no dia da semana. Se ainda não há treino registrado, começa em Push A.
+  // Próximo treino sugerido: baseado no ÚLTIMO treino concluído (armadilha 9),
+  // não no dia da semana. Se ainda não há treino registrado, começa no primeiro dia.
   const lastSlug = lastCompletion?.workout_day?.slug ?? null;
   const nextWorkout = getNextWorkoutDay(days, lastSlug);
 
+  // Estado para a tela decidir o que mostrar. Depois da 1ª carga, uma recarga
+  // (foco, "Tentar de novo") nunca volta para 'loading': os dados ficam na tela.
+  const status: WorkoutStatus = !hasLoaded
+    ? (error ? 'error' : 'loading')
+    : days.length === 0 ? 'empty' : 'ready';
+
   return {
+    status,
     days,
     checks,
     todayCompletion,
     lastCompletion,
     nextWorkout,
     stats,
-    loading,
+    /** Compatibilidade: true só no primeiro carregamento (status === 'loading'). */
+    loading: status === 'loading',
+    /** Recarga em andamento (inclusive a primeira). Para indicador discreto. */
+    refreshing,
+    /** Erro de carregamento em pt-BR. Com status 'ready', foi só a recarga que falhou. */
     error,
+    /** Erro ao concluir o treino, em pt-BR. */
+    saveError,
     toggleCheck,
     completeWorkout,
     notes,
     saveNote,
+    /** Recarrega em silêncio (sem spinner de tela cheia). */
     refresh: load,
+    /** Mesmo que refresh; nome para o botão "Tentar de novo". */
+    retry: load,
   };
 }

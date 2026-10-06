@@ -1,13 +1,21 @@
 import React from 'react';
-import {
-  View, Text, TouchableOpacity, StyleSheet,
-  ScrollView, ActivityIndicator,
-} from 'react-native';
+import { View, Text, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
 import { useWorkout } from '../hooks/useWorkout';
-import { Colors, Radius, FontSize, Spacing } from '../utils/theme';
+import { useTheme, makeStyles } from '../contexts/ThemeContext';
+import { MONTH_NAMES } from '../utils/date';
+import { Font, FontSize, LineHeight, Radius, Spacing, Touch, Tracking, numberLineHeight } from '../utils/theme';
+import { PrimaryButton } from '../components/Buttons';
+import { DayHeadline } from '../components/DayHeadline';
+import { NumbersRow } from '../components/NumbersRow';
+import { ErrorBlock } from '../components/ErrorBlock';
+import { Skeleton } from '../components/Skeleton';
+import { useTimerInsets } from '../hooks/useTimerInsets';
+
+const WEEKDAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+const SECONDS_PER_SET = 45; // execução da série, para a estimativa de minutos
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -16,211 +24,201 @@ function greeting(): string {
   return 'Boa noite';
 }
 
+function todayLabel(): string {
+  const d = new Date();
+  return `${WEEKDAYS[d.getDay()]}, ${d.getDate()} de ${MONTH_NAMES[d.getMonth()].toLowerCase()}.`;
+}
+
+const useStyles = makeStyles(c => ({
+  container: { flex: 1, backgroundColor: c.bg },
+  scroll: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.sm },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: Touch.min },
+  brand: {
+    fontFamily: Font.condBold, fontSize: FontSize.xl, color: c.text,
+    textTransform: 'uppercase', letterSpacing: Tracking.caps, includeFontPadding: false,
+  },
+  avatar: {
+    width: Touch.min, height: Touch.min, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: c.border, borderRadius: Radius.sm,
+  },
+  avatarHover: { backgroundColor: c.cardHover },
+  avatarText: {
+    fontFamily: Font.condSemi, fontSize: FontSize.title, color: c.text, includeFontPadding: false, textTransform: 'uppercase',
+  },
+  hello: { marginTop: Spacing.xs, fontFamily: Font.body, fontSize: FontSize.base, color: c.textMuted },
+  block: { marginTop: Spacing.xxxl },
+  gap: { marginTop: Spacing.xl },
+  note: { marginTop: Spacing.md, fontFamily: Font.body, fontSize: FontSize.md, color: c.textMuted },
+  emptyText: { marginTop: Spacing.md, fontFamily: Font.body, fontSize: FontSize.base, color: c.textMuted, lineHeight: LineHeight.base },
+  list: { marginTop: Spacing.xxxl, borderTopWidth: 1, borderTopColor: c.border },
+  row: {
+    minHeight: Touch.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.lg,
+    borderBottomWidth: 1, borderBottomColor: c.border,
+  },
+  rowHover: { backgroundColor: c.cardHover },
+  rowLabel: { fontFamily: Font.bodyMedium, fontSize: FontSize.base, color: c.text },
+  rowRight: { flex: 1, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: Spacing.sm },
+  rowValue: { flexShrink: 1, textAlign: 'right', fontFamily: Font.body, fontSize: FontSize.md, color: c.textMuted },
+  rowValueFaint: { color: c.textFaint },
+  chevron: { fontFamily: Font.condMedium, fontSize: FontSize.xl, color: c.textMuted, includeFontPadding: false },
+  foot: { marginTop: Spacing.xxxl, fontFamily: Font.body, fontSize: FontSize.md, color: c.textMuted },
+  footNum: {
+    fontFamily: Font.condBold, fontSize: FontSize.xl, lineHeight: numberLineHeight(FontSize.xl),
+    color: c.text, fontVariant: ['tabular-nums'], includeFontPadding: false,
+  },
+}));
+
+function ListRow({
+  label, value, onPress, faint,
+}: { label: string; value: string; onPress?: () => void; faint?: boolean }) {
+  const styles = useStyles();
+  const content = (
+    <>
+      <Text style={styles.rowLabel}>{label}</Text>
+      <View style={styles.rowRight}>
+        <Text style={[styles.rowValue, faint && styles.rowValueFaint]} numberOfLines={2}>{value}</Text>
+        {onPress ? <Text style={styles.chevron}>›</Text> : null}
+      </View>
+    </>
+  );
+  if (!onPress) {
+    return <View style={styles.row} accessible accessibilityLabel={`${label}: ${value}`}>{content}</View>;
+  }
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}: ${value}`}
+      style={({ pressed }) => [styles.row, pressed && styles.rowHover]}
+    >
+      {content}
+    </Pressable>
+  );
+}
+
 export function HomeScreen() {
+  const styles = useStyles();
+  const { colors, dayColor } = useTheme();
   const navigation = useNavigation<any>();
-  const { profile, signOut } = useAuth();
-  const { nextWorkout, lastCompletion, todayCompletion, stats, loading } = useWorkout();
+  const { profile, dietMode } = useAuth();
+  const {
+    status, error, retry, nextWorkout, lastCompletion, todayCompletion, stats,
+  } = useWorkout({ refreshOnFocus: true });
+  const timerInsets = useTimerInsets();
 
   const firstName = profile?.full_name?.split(' ')[0] ?? 'Atleta';
-  const programName = profile?.program?.name ?? 'Meu treino';
-  const programDesc = profile?.program?.description ?? '';
-  // Antes da migração o campo não existe (undefined) → dieta ativa por compatibilidade
-  const dietEnabled = profile?.diet_enabled !== false;
+
+  const dietValue =
+    dietMode === 'fixed' ? 'Variantes A e B'
+    : dietMode === 'plan' ? (profile?.diet_plan?.name ?? 'Plano alimentar')
+    : dietMode === 'pending' ? 'Em preparação'
+    : dietMode === 'error' ? 'Não foi possível carregar'
+    : 'Carregando…';
+
+  // Números do próximo treino (estimativa, só para dar noção ao usuário)
+  const exercises = nextWorkout?.exercises ?? [];
+  const setsTotal = exercises.reduce((s, e) => s + (parseInt(e.sets, 10) || 0), 0);
+  const minutes = Math.round(
+    exercises.reduce((s, e) => s + (parseInt(e.sets, 10) || 0) * (e.rest_seconds + SECONDS_PER_SET), 0) / 60,
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-
-        {/* Header */}
+      <ScrollView
+        contentContainerStyle={[styles.scroll, { paddingBottom: timerInsets.bottom }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {timerInsets.top > 0 && <View style={{ height: timerInsets.top }} />}
+        {/* Topo */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>{greeting()}</Text>
-            <Text style={styles.name}>{firstName}</Text>
-          </View>
-          <TouchableOpacity onPress={signOut} style={styles.avatarBtn}>
-            <Text style={styles.avatarText}>
-              {firstName[0]?.toUpperCase() ?? '?'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Next workout card (baseado no último treino, não no dia) */}
-        {nextWorkout && (
-          <TouchableOpacity
-            style={styles.nextCard}
-            onPress={() => navigation.navigate('Workout', { daySlug: nextWorkout.slug })}
-            activeOpacity={0.9}
+          <Text style={styles.brand} accessibilityRole="header">Meu Plano</Text>
+          <Pressable
+            onPress={() => navigation.navigate('Profile')}
+            accessibilityRole="button"
+            accessibilityLabel="Abrir perfil e ajustes"
+            style={({ pressed }) => [styles.avatar, pressed && styles.avatarHover]}
           >
-            <View style={[styles.nextAccent, { backgroundColor: nextWorkout.color }]} />
-            <View style={styles.nextContent}>
-              <Text style={styles.nextLabel}>PRÓXIMO TREINO</Text>
-              <Text style={[styles.nextTitle, { color: nextWorkout.color }]}>
-                {nextWorkout.label}
-              </Text>
-              <Text style={styles.nextMuscles}>{nextWorkout.muscles}</Text>
-              {lastCompletion?.workout_day && (
-                <Text style={styles.nextHint}>
-                  Último: {lastCompletion.workout_day.label}
-                </Text>
-              )}
-            </View>
-            <View style={[styles.playBtn, { backgroundColor: nextWorkout.color }]}>
-              <Text style={styles.playIcon}>▶</Text>
-            </View>
-          </TouchableOpacity>
+            <Text style={styles.avatarText}>{firstName[0]?.toUpperCase() ?? '?'}</Text>
+          </Pressable>
+        </View>
+        <Text style={styles.hello}>{greeting()}, {firstName}. {todayLabel()}</Text>
+
+        {/* Próximo treino (definido pelo último concluído, não pelo dia) */}
+        {status === 'loading' && (
+          <View style={styles.block}>
+            <Skeleton width={220} height={64} />
+            <Skeleton height={88} style={styles.gap} />
+            <Skeleton height={56} style={styles.gap} />
+          </View>
         )}
 
-        {/* Stats — 2 cards (Total + status de hoje) */}
-        {loading
-          ? <ActivityIndicator color={Colors.textMuted} style={{ marginVertical: 16 }} />
-          : (
-            <View style={styles.statsRow}>
-              <View style={styles.statCard}>
-                <Text style={[styles.statValue, { color: Colors.green }]}>
-                  {stats?.total_workouts ?? 0}
-                </Text>
-                <Text style={styles.statLabel}>Treinos no total</Text>
-              </View>
-              <View style={styles.statCard}>
-                <Text style={[styles.statValue, { color: todayCompletion ? Colors.green : Colors.textMuted }]}>
-                  {todayCompletion ? '✓' : '—'}
-                </Text>
-                <Text style={styles.statLabel}>
-                  {todayCompletion ? 'Treinou hoje' : 'Sem treino hoje'}
-                </Text>
-              </View>
+        {status === 'error' && (
+          <View style={styles.block}>
+            <ErrorBlock
+              title="Não foi possível carregar seu treino."
+              cause={error ?? 'Confira a internet.'}
+              onRetry={retry}
+            />
+          </View>
+        )}
+
+        {status === 'empty' && (
+          <View style={styles.block}>
+            <DayHeadline label="Sem programa" color={colors.restColor} />
+            <Text style={styles.emptyText}>Você ainda não tem um programa de treino.</Text>
+          </View>
+        )}
+
+        {status === 'ready' && nextWorkout && (
+          <View style={styles.block}>
+            <DayHeadline
+              kicker="Próximo treino"
+              tag={todayCompletion ? 'Feito hoje' : undefined}
+              label={nextWorkout.label}
+              muscles={nextWorkout.muscles}
+              color={dayColor(nextWorkout.color)}
+            />
+            <View style={styles.gap}>
+              <NumbersRow items={[
+                { value: String(exercises.length), label: 'exercícios' },
+                { value: String(setsTotal), label: 'séries' },
+                { value: String(minutes), label: 'minutos, aprox.' },
+              ]} />
             </View>
-          )}
+            <View style={styles.gap}>
+              <PrimaryButton
+                label={todayCompletion ? 'Ver próximo treino' : 'Começar treino'}
+                onPress={() => navigation.navigate('Workout', { daySlug: nextWorkout.slug })}
+              />
+            </View>
+            {lastCompletion?.workout_day && (
+              <Text style={styles.note}>Último treino: {lastCompletion.workout_day.label}.</Text>
+            )}
+          </View>
+        )}
 
-        {/* Nav cards */}
-        <Text style={styles.sectionTitle}>Explorar</Text>
+        {/* Navegação */}
+        <View style={styles.list}>
+          <ListRow
+            label="Dieta"
+            value={dietValue}
+            faint={dietMode === 'pending'}
+            onPress={dietMode === 'pending' ? undefined : () => navigation.navigate('Diet')}
+          />
+          <ListRow
+            label="Calendário"
+            value="Histórico de treinos"
+            onPress={() => navigation.navigate('Calendar')}
+          />
+        </View>
 
-        <TouchableOpacity
-          style={styles.navBtn}
-          onPress={() => navigation.navigate('Workout')}
-          activeOpacity={0.9}
-        >
-          <View style={[styles.navIcon, { backgroundColor: Colors.pushColor + '26' }]}>
-            <Text style={styles.navIconEmoji}>💪</Text>
-          </View>
-          <View style={styles.navInfo}>
-            <Text style={styles.navTitle}>Treinos</Text>
-            <Text style={styles.navSub}>{programDesc ? `${programName} · ${programDesc}` : programName}</Text>
-          </View>
-          <Text style={styles.chevron}>›</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.navBtn, !dietEnabled && styles.navBtnDisabled]}
-          onPress={() => navigation.navigate('Diet')}
-          activeOpacity={0.9}
-        >
-          <View style={[styles.navIcon, { backgroundColor: dietEnabled ? Colors.green + '26' : Colors.surface }]}>
-            <Text style={[styles.navIconEmoji, !dietEnabled && styles.dimmed]}>🥗</Text>
-          </View>
-          <View style={styles.navInfo}>
-            <Text style={[styles.navTitle, !dietEnabled && { color: Colors.textFaint }]}>Dieta</Text>
-            <Text style={styles.navSub}>
-              {dietEnabled ? (profile?.diet_plan ? `${profile.diet_plan.name} · treino e descanso` : 'Dietas A e B · déficit calórico') : 'Pendente · em criação'}
-            </Text>
-          </View>
-          {dietEnabled
-            ? <Text style={styles.chevron}>›</Text>
-            : <View style={styles.pendingBadge}><Text style={styles.pendingBadgeText}>EM BREVE</Text></View>}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navBtn}
-          onPress={() => navigation.navigate('Calendar')}
-          activeOpacity={0.9}
-        >
-          <View style={[styles.navIcon, { backgroundColor: Colors.pullColor + '26' }]}>
-            <Text style={styles.navIconEmoji}>📅</Text>
-          </View>
-          <View style={styles.navInfo}>
-            <Text style={styles.navTitle}>Calendário</Text>
-            <Text style={styles.navSub}>Histórico completo de treinos</Text>
-          </View>
-          <Text style={styles.chevron}>›</Text>
-        </TouchableOpacity>
-
-        <View style={{ height: 40 }} />
+        {status === 'ready' && (
+          <Text style={styles.foot}>
+            <Text style={styles.footNum}>{stats?.total_workouts ?? 0}</Text>
+            {' '}treinos concluídos desde o início
+          </Text>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bg },
-  scroll: { padding: Spacing.xl, paddingBottom: 40, gap: Spacing.lg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  greeting: { fontSize: FontSize.md, color: Colors.textMuted },
-  name: { fontSize: FontSize.xxl, fontWeight: '800', color: Colors.text, letterSpacing: -0.5, marginTop: 2 },
-  avatarBtn: {
-    width: 44, height: 44, borderRadius: Radius.pill,
-    backgroundColor: Colors.card,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  avatarText: { fontSize: FontSize.lg, fontWeight: '700', color: Colors.green },
-  nextCard: {
-    backgroundColor: Colors.card,
-    borderRadius: Radius.xl,
-    flexDirection: 'row',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  nextAccent: { width: 4, alignSelf: 'stretch' },
-  nextContent: { flex: 1, padding: Spacing.xl },
-  nextLabel: {
-    fontSize: FontSize.xs, color: Colors.textFaint,
-    textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6,
-  },
-  nextTitle: { fontSize: FontSize.xl, fontWeight: '800', letterSpacing: -0.5 },
-  nextMuscles: { fontSize: FontSize.md, color: Colors.textMuted, marginTop: 3 },
-  nextHint: { fontSize: FontSize.sm, color: Colors.textFaint, marginTop: 8 },
-  playBtn: {
-    width: 52, height: 52, borderRadius: Radius.pill,
-    alignItems: 'center', justifyContent: 'center',
-    marginRight: Spacing.xl,
-  },
-  playIcon: { fontSize: 18, color: '#000', marginLeft: 3 },
-  statsRow: { flexDirection: 'row', gap: Spacing.md },
-  statCard: {
-    flex: 1,
-    backgroundColor: Colors.card,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    alignItems: 'center',
-  },
-  statValue: { fontSize: FontSize.xxl, fontWeight: '800' },
-  statLabel: { fontSize: FontSize.sm, color: Colors.textMuted, marginTop: 4, textAlign: 'center' },
-  sectionTitle: {
-    fontSize: FontSize.lg, fontWeight: '700', color: Colors.text,
-    marginTop: Spacing.xs, marginBottom: -4,
-  },
-  navBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.lg,
-    backgroundColor: Colors.card,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-  },
-  navBtnDisabled: { backgroundColor: Colors.bgElevated },
-  dimmed: { opacity: 0.35 },
-  pendingBadge: {
-    backgroundColor: Colors.surface, borderRadius: Radius.pill,
-    paddingHorizontal: 10, paddingVertical: 4,
-  },
-  pendingBadgeText: { fontSize: 10, fontWeight: '700', color: Colors.textFaint, letterSpacing: 0.5 },
-  navIcon: { width: 52, height: 52, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
-  navIconEmoji: { fontSize: 26 },
-  navInfo: { flex: 1 },
-  navTitle: { fontSize: FontSize.lg, fontWeight: '700', color: Colors.text },
-  navSub: { fontSize: FontSize.md, color: Colors.textMuted, marginTop: 2 },
-  chevron: { fontSize: 22, color: Colors.textFaint },
-});

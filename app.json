@@ -5,26 +5,49 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0F0F0F"
+      "backgroundColor": "#F1F1EF"
     },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.meuplano.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
+      },
+      "splash": {
+        "image": "./assets/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#F1F1EF",
+        "dark": {
+          "image": "./assets/splash-icon.png",
+          "backgroundColor": "#222221"
+        }
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0F0F0F"
+        "backgroundColor": "#222221"
       },
       "package": "com.meuplano.app",
       "googleServicesFile": "./google-services.json",
+      "splash": {
+        "image": "./assets/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#F1F1EF",
+        "dark": {
+          "image": "./assets/splash-icon.png",
+          "backgroundColor": "#222221"
+        }
+      },
+      "permissions": [
+        "POST_NOTIFICATIONS",
+        "SCHEDULE_EXACT_ALARM",
+        "VIBRATE"
+      ],
       "intentFilters": [
         {
           "action": "VIEW",
@@ -49,8 +72,8 @@
       "favicon": "./assets/favicon.png",
       "name": "Meu Plano",
       "shortName": "Meu Plano",
-      "themeColor": "#1A1A1C",
-      "backgroundColor": "#1A1A1C"
+      "themeColor": "#222221",
+      "backgroundColor": "#222221"
     },
     "plugins": [
       "expo-router",

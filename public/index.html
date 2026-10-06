@@ -9,16 +9,39 @@
     <!-- App instalável (Adicionar à Tela de Início no iPhone) -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Meu Plano" />
-    <meta name="theme-color" content="#1A1A1C" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F1F1EF" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#222221" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="manifest" href="/manifest.json" />
 
+    <!-- Primeira pintura sem piscar: lê a escolha de tema salva (mesma chave de src/services/devicePrefs.ts) antes do app montar (fica depois das metas theme-color, que ele ajusta). -->
+    <script>
+    (function () {
+      try {
+        var p = localStorage.getItem('meu-plano:tema');
+        var dark = p === 'dark' || (p !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        var bg = dark ? '#222221' : '#F1F1EF';
+        var r = document.documentElement;
+        r.style.backgroundColor = bg;
+        r.style.colorScheme = dark ? 'dark' : 'light';
+        r.style.setProperty('--focus', dark ? '#E9E7E3' : '#262626');
+        if (p === 'light' || p === 'dark') {
+          var m = document.querySelectorAll('meta[name="theme-color"]');
+          for (var i = 0; i < m.length; i++) { m[i].setAttribute('content', bg); m[i].removeAttribute('media'); }
+        }
+      } catch (e) {}
+    })();
+    </script>
+
     <style id="expo-reset">
-      html, body { height: 100%; background-color: #1A1A1C; }
-      body { overflow: hidden; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+      html { height: 100%; background-color: #F1F1EF; }
+      @media (prefers-color-scheme: dark) { html { background-color: #222221; } }
+      body { height: 100%; background-color: transparent; overflow: hidden; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+      :focus-visible { outline: 2px solid var(--focus, currentColor) !important; outline-offset: 2px; }
       #root { display: flex; height: 100%; flex: 1; }
     </style>
   </head>

@@ -11,10 +11,6 @@ export function todayISO(): string {
   return formatDate(new Date());
 }
 
-export function todayWeekdayIndex(): number {
-  const d = new Date().getDay(); // 0=Dom
-  return d === 0 ? 6 : d - 1;    // 0=Seg..6=Dom
-}
 
 export const MONTH_NAMES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',

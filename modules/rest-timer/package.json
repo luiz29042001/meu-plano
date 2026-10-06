@@ -1,0 +1,7 @@
+{
+  "name": "rest-timer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Modulo nativo local (Android) do Meu Plano: notificacao do descanso com contagem regressiva e alarme no fim.",
+  "main": "index.ts"
+}
