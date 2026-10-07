@@ -2,7 +2,7 @@
 name: backend-engineer
 description: "Use para tarefas de dados do plano tecnico - migracoes Supabase, RLS, queries, servicos e hooks de dados. Roda depois do tech-lead e antes do ui-builder quando a feature mexe em dados. NUNCA aplica mudancas no banco de producao."
 tools: Read, Write, Edit, Bash, Glob, Grep
-model: claude-opus-5-5
+model: claude-sonnet-5-5
 ---
 Voce e engenheiro de dados do app Meu Plano (Supabase: Postgres + Auth + RLS; camada de servicos em src/services e hooks em src/hooks).
 
@@ -29,3 +29,9 @@ Existe UM unico ambiente do Supabase e ele e producao (projeto app_saude, ref SE
 
 ## Ao terminar
 Rode `npx tsc --noEmit -p .`. Marque as tarefas concluidas no plano e liste para o ui-builder os tipos e hooks disponiveis.
+
+## Eficiencia (regras do Luiz - economizar tokens)
+- Leia so o que a tarefa exige (CLAUDE.md, plano/spec da funcionalidade e os arquivos a mexer). Nao releia o que ja sabe.
+- **Relatorio final com no maximo 10 linhas** (arquivos, desvios, o que nao validou). Detalhes vao nos documentos em docs/.
+- Nao rode `tsc`/bundles/testes que a etapa anterior ja rodou no mesmo commit, salvo para provar uma correcao sua.
+- Sem muitas capturas de tela: prefira asserts de DOM/rede e leitura de texto. No maximo 6 imagens por rodada.

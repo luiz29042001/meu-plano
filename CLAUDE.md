@@ -12,7 +12,7 @@ Contexto do projeto para o Claude Code. Leia antes de qualquer alteração.
 ## Regras gerais do Luiz (cópia de `~/.claude/CLAUDE.md`, para valer também na nuvem)
 
 - **OK explícito antes de:** aplicar migração/SQL de escrita, publicar (web, `git push`), gerar build EAS, apagar arquivos/dados/branches, mudar configurações de serviços externos, instalar programas. Leitura não precisa de OK. Nunca peça senha ou token no chat.
-- **Modelos:** teto Opus 5.5 (`claude-opus-5-5`); nunca `fable`.
+- **Modelos (economia de tokens, decisão do Luiz 07/10/2026):** padrão **Sonnet 5.5** (`claude-sonnet-5-5`) para todos os agentes e comandos. **Opus 5.5** (`claude-opus-5-5`) só no muito estratégico: revisão de segurança de migração/RLS/Edge Function (acionar o code-reviewer com `model: opus` nessa execução), impasse de QA na 3ª rodada e planejamento de funcionalidade nova de alto risco (ex.: IA/geração de treino). Nunca `fable`.
 - **Onde roda:** no notebook (Windows: `npx.cmd` no PowerShell; `gh`, `eas` e Supabase CLI já logados; Supabase já linkado) ou na nuvem (Linux: `npx` normal; chaves do Expo e do Supabase via Credenciais de API do ambiente; o link do Supabase e o login do EAS NÃO existem lá — teste antes e, se não funcionar, deixe build EAS e `db push` para o notebook). Todo trabalho vai para o GitHub para a outra máquina enxergar.
 
 ## O que é o app
@@ -128,25 +128,36 @@ Comandos de apoio, todos com confirmação do Luiz antes de qualquer envio ou mu
 
 | Agente | Papel | Modelo | Escreve em |
 |---|---|---|---|
-| tech-lead | arquitetura, plano técnico, critérios de aceite | Opus 5.5 | `docs/tech/` |
-| design-director | direção visual, spec e mockup da tela | Opus 5.5 | `docs/design/` |
-| backend-engineer | Supabase: migrações, RLS, serviços | Opus 5.5 | código + `supabase/migrations/` |
+| tech-lead | arquitetura, plano técnico, critérios de aceite | Sonnet 5.5 (Opus só quando indicado) | `docs/tech/` |
+| design-director | direção visual, spec e mockup da tela | Sonnet 5.5 (Opus só quando indicado) | `docs/design/` |
+| backend-engineer | Supabase: migrações, RLS, serviços | Sonnet 5.5 (Opus só quando indicado) | código + `supabase/migrations/` |
 | ui-builder | implementa a tela conforme spec | Sonnet 5.5 | código de UI |
 | qa-tester | valida a versão web via Playwright MCP | Sonnet 5.5 | `docs/qa/` |
-| code-reviewer | revisa as mudanças | Opus 5.5 | `docs/review/` |
+| code-reviewer | revisa as mudanças | Sonnet 5.5 (Opus só quando indicado) | `docs/review/` |
 
-Critério dos modelos: quanto mais cara e silenciosa for a falha, mais forte o modelo (planejamento, banco/RLS, revisão final). Quanto mais volumoso e verificável o trabalho (código de tela, testes), mais econômico. Quem constrói (sonnet) e quem revisa (opus) são de propósito de níveis diferentes.
+Critério dos modelos: Sonnet por padrão em tudo (volume alto, falha verificável). Opus só onde a falha é cara e silenciosa: revisão de segurança de banco/RLS/Edge Function e impasses. Sempre que uma migração mexer em dados de produção, a revisão dessa migração é feita em Opus.
 
 Fluxo: tech-lead + design-director (em paralelo) → **Luiz aprova** → backend-engineer (se houver dados) → ui-builder → qa-tester (repete até aprovar) → code-reviewer. Quem constrói nunca se auto-aprova.
 
 ### Regras do pipeline
 
-- **Teto de modelo: Opus 5.5.** Nunca usar `fable` nem qualquer modelo que consuma créditos. Isso vale também ao escolher modelo ao acionar um agente. O uso do Opus é limitado por hora: reservar para planejamento, banco/RLS, design e revisão; código de tela e testes ficam no Sonnet 5.5.
+- **Teto de modelo: Opus 5.5**, e Sonnet 5.5 como padrão. Nunca usar `fable` nem qualquer modelo que consuma créditos. Opus só nas exceções da regra de modelos acima.
 - **Resumos para o Luiz** (ele não é desenvolvedor): pt-BR simples, sem jargão. Dizer o que muda no app do ponto de vista dele e o que ele precisa fazer (ex.: gerar novo APK, publicar a web).
 - **Só existe um ambiente do Supabase: produção.** Nenhum agente aplica migração, roda SQL ou executa `supabase db push` sem o Luiz confirmar. Os agentes apenas criam o arquivo em `supabase/migrations/`; a sessão principal explica o impacto em português simples e pede o OK.
 - **Não há suíte de testes nem lint hoje.** A validação é: `tsc`, os dois bundles (Android e web), QA visual na web e revisão. Se criarmos testes, registrar o comando aqui.
 - Antes de entregar, vale a regra já existente: `tsc` + bundle de Android e de web compilando.
 - O `git` de linha de comando funciona (Git for Windows em `D:\Git`, reinstalado em 05/10/2026). Se um dia faltar, o code-reviewer revisa os arquivos listados no relatório do ui-builder / backend-engineer.
+
+### Fluxo enxuto (economia de tokens — vindo do PetPlace, 07/10/2026)
+
+Medição no PetPlace (181 M tokens processados em 25 h): 37% foi a conversa principal (contexto inflado de ~130 mil para ~445 mil tokens por chamada), 24% o ui-builder, 20% o QA, 7% backend, 5% revisor, 3% design, 3% tech-lead. O gasto é sobretudo **releitura de contexto** a cada chamada. Regras que valem aqui:
+- **Uma sessão (contexto) por funcionalidade.** Ao terminar, registrar a "Retomada" no CLAUDE.md e usar `/clear`.
+- **Sem checkpoint visual para telas no estilo já aprovado** (pedir aprovação visual só se mudar paleta/fontes/navegação).
+- **Planejamento enxuto:** sem mudança de banco e sem padrão visual novo, um único agente de planejamento escreve plano + spec curta; design-director só para padrão visual novo.
+- **Verificação uma vez:** o ui-builder roda `tsc` + bundles + seus asserts. O QA não repete `tsc`/bundle Android e usa roteiro de testes **salvo no repositório** (criar `tests/qa/` com um simulador do Supabase via `page.route` e estendê-lo a cada tela, em vez de recriar). O revisor lê só o diff.
+- **QA: uma rodada;** nova rodada só se reprovou, revalidando apenas os desvios + regressão pelos scripts. Poucas capturas de tela (máx. 6): preferir asserts de DOM/rede.
+- **Correções pequenas** (até ~3 arquivos): a sessão principal faz direto. Maiores: agente NOVO com a lista curta, nunca retomar agente que já ficou pesado.
+- **Relatórios dos agentes com no máximo 10 linhas;** detalhes em `docs/`. Commit e push no mesmo turno em que o agente termina.
 
 ### Limites do QA visual
 
