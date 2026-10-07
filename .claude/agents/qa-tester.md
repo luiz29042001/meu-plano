@@ -27,3 +27,10 @@ O app usa um unico Supabase, que e producao. Portanto:
 - **Conferir no celular (Android):** lista do que o Playwright NAO consegue validar e precisa ser visto no APK (texto cortado em abas, vibracao do cronometro, gestos nativos, area segura). Seja especifico sobre quais telas e o que olhar.
 
 Rigor: "parece ok" nao e evidencia.
+
+## Eficiencia (regras do Luiz - economizar tokens)
+- Leia so o que a tarefa exige (CLAUDE.md, plano/spec da funcionalidade e os arquivos a mexer). Nao releia o que ja sabe.
+- **Relatorio final com no maximo 10 linhas** (arquivos, desvios, o que nao validou). Detalhes vao nos documentos em docs/.
+- Nao rode `tsc`/bundles/testes que a etapa anterior ja rodou no mesmo commit, salvo para provar uma correcao sua.
+- Sem muitas capturas de tela: prefira asserts de DOM/rede e leitura de texto. No maximo 6 imagens por rodada.
+- **QA enxuto:** use o roteiro salvo em `tests/qa/` (se nao existir, crie `tests/qa/harness.js` com o simulador do Supabase e deixe-o para as proximas telas). Gere so o bundle web; nao rode `tsc` nem o bundle Android (o construtor ja rodou). Uma rodada; nova rodada so reverifica os desvios corrigidos + regressao pelos scripts.

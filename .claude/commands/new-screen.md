@@ -7,6 +7,15 @@ Execute o pipeline completo para: $ARGUMENTS
 
 Lembrete: o Luiz nao e desenvolvedor. Tudo que voce disser a ele deve estar em portugues simples, sem jargao. Os agentes tem contexto isolado e se comunicam por arquivos em docs/.
 
+## Regras de eficiencia (decisao do Luiz, 07/10/2026 - economizar tokens; valem sobre as etapas abaixo)
+- **Uma sessao (contexto) por tela/funcionalidade:** ao terminar, atualize `docs/retomada.md` e peca ao Luiz para usar `/clear`.
+- **Planejamento:** sem mudanca de banco e sem padrao visual novo, um unico agente de planejamento (tech-lead) escreve plano + spec curta; design-director so para padrao visual novo. Telas no estilo ja aprovado dispensam o checkpoint visual.
+- **Verificacao uma vez:** o ui-builder roda tsc + bundles + asserts; o QA NAO repete tsc/bundle Android e usa o roteiro `tests/qa/`; o revisor le so o diff.
+- **QA: uma rodada** (nova so se reprovou, revalidando os desvios + regressao pelos scripts). Poucas capturas de tela.
+- **Correcoes pequenas** (ate ~3 arquivos): a sessao principal faz direto; maiores: agente NOVO com lista curta, nunca retomar agente pesado.
+- **Relatorios dos agentes: max. 10 linhas.** Commit LOCAL no mesmo turno em que o agente termina; `git push` so com OK do Luiz, uma vez por bloco de trabalho.
+- **Modelos:** Sonnet para tudo; Opus so para revisao de seguranca de migracao/RLS/Edge Function e impasse de QA na 3a rodada.
+
 ## Etapa 1 - Planejamento (em paralelo)
 Acione ao mesmo tempo:
 - **tech-lead** -> docs/tech/<feature>.md
@@ -21,7 +30,7 @@ Acione ao mesmo tempo:
 ## Etapa 3 - Construcao
 - **ui-builder** implementa conforme spec e plano (inclui tsc e bundles Android e web).
 
-## Etapa 4 - QA (repete, maximo 3 vezes)
+## Etapa 4 - QA (uma rodada; nova so para reverificar o que foi corrigido; maximo 3 no total)
 - **qa-tester** valida a versao web e escreve docs/qa/<feature>.md. Ele usa conta de teste, nunca as contas reais.
 - Se REPROVADO: envie os desvios ao **ui-builder** (ou **backend-engineer**) e rode o QA de novo.
 - Se o QA nao conseguir logar (setup ainda nao feito), PARE e sugira ao Luiz rodar `/preparar-qa`. Se so faltar o login, avise-o para entrar na conta de teste na janela do navegador que abriu.
@@ -29,7 +38,7 @@ Acione ao mesmo tempo:
 - Apos 3 rodadas sem aprovar, pare e explique o impasse.
 
 ## Etapa 5 - Revisao
-- **code-reviewer** escreve docs/review/<feature>.md.
+- **code-reviewer** (so se for fechar versao ou se houve mudanca de banco/RLS; migracao de producao = acione com `model: opus`) escreve docs/review/<feature>.md, lendo so o diff.
 - Se houver bloqueantes: corrija via ui-builder/backend-engineer e rode o QA de novo.
 
 ## Etapa 6 - Fechamento (portugues simples)

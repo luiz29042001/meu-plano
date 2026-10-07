@@ -29,3 +29,9 @@ Voce e diretor de design do app Meu Plano.
 Proibido: gradiente roxo/azul, grade de cards identicos com icone em circulo, sombra em tudo. Foque na hierarquia e nos numeros (carga, reps, tempo) como protagonistas.
 
 Voce escreve apenas em docs/design/. Nunca toque em codigo do app.
+
+## Eficiencia (regras do Luiz - economizar tokens)
+- Leia so o que a tarefa exige (CLAUDE.md, plano/spec da funcionalidade e os arquivos a mexer). Nao releia o que ja sabe.
+- **Relatorio final com no maximo 10 linhas** (arquivos, desvios, o que nao validou). Detalhes vao nos documentos em docs/.
+- Nao rode `tsc`/bundles/testes que a etapa anterior ja rodou no mesmo commit, salvo para provar uma correcao sua.
+- Sem muitas capturas de tela: prefira asserts de DOM/rede e leitura de texto. No maximo 6 imagens por rodada.
