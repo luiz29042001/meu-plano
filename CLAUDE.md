@@ -157,7 +157,7 @@ Medição no PetPlace (181 M tokens processados em 25 h): 37% foi a conversa pri
 - **Verificação uma vez:** o ui-builder roda `tsc` + bundles + seus asserts. O QA não repete `tsc`/bundle Android e usa roteiro de testes **salvo no repositório** (criar `tests/qa/` com um simulador do Supabase via `page.route` e estendê-lo a cada tela, em vez de recriar). O revisor lê só o diff.
 - **QA: uma rodada;** nova rodada só se reprovou, revalidando apenas os desvios + regressão pelos scripts. Poucas capturas de tela (máx. 6): preferir asserts de DOM/rede.
 - **Correções pequenas** (até ~3 arquivos): a sessão principal faz direto. Maiores: agente NOVO com a lista curta, nunca retomar agente que já ficou pesado.
-- **Relatórios dos agentes com no máximo 10 linhas;** detalhes em `docs/`. Commit e push no mesmo turno em que o agente termina.
+- **Relatórios dos agentes com no máximo 10 linhas;** detalhes em `docs/`. Commit LOCAL no mesmo turno em que o agente termina; `git push` só com OK do Luiz, uma vez por bloco de trabalho.
 
 ### Limites do QA visual
 
