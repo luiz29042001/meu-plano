@@ -547,7 +547,7 @@ export function WorkoutScreen() {
     if (!current || !activeDay) return;
     const n = parseSets(current.sets);
     const c = Math.min(counts[current.id] ?? 0, n);
-    const next = c + 1;
+    const next = Math.min(c + 1, n);
     if (startedAtRef.current === null) startedAtRef.current = Date.now();
     setCount(current.id, next);
     haptic(10);
@@ -583,6 +583,8 @@ export function WorkoutScreen() {
   if (!activeDay?.is_rest && total > 0 && !alreadyMarked && !justCompleted) {
     if (saving) {
       dock = <PrimaryButton label="Salvando…" loading />;
+    } else if (allDone) {
+      dock = <PrimaryButton label="Marcar como concluído" onPress={handleComplete} />;
     } else if (current && checks[current.id]) {
       dock = <OutlineButton label="Reabrir exercício" onPress={onReopen} />;
     } else if (current) {
@@ -596,8 +598,6 @@ export function WorkoutScreen() {
           onPress={onSetDone}
         />
       );
-    } else if (allDone) {
-      dock = <PrimaryButton label="Marcar como concluído" onPress={handleComplete} />;
     }
   }
 

@@ -1,15 +1,14 @@
 // Séries feitas por exercício no dia (só neste aparelho; o banco guarda apenas
 // "exercício feito"). Chave `sets:YYYY-MM-DD:<exerciseId>`; dias antigos são limpos.
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { loadSetCounts, saveSetCount } from '../services/devicePrefs';
 
 export function useSetProgress(today: string) {
   const [counts, setCounts] = useState<Record<number, number>>({});
-  const ref = useRef(counts);
-  ref.current = counts;
 
   useEffect(() => {
     let alive = true;
+    setCounts({}); // virou o dia: séries de ontem não valem hoje
     loadSetCounts(today).then(loaded => {
       // Mantém o que o usuário já marcou antes da leitura terminar.
       if (alive) setCounts(prev => ({ ...loaded, ...prev }));

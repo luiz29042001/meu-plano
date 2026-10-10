@@ -51,7 +51,7 @@ function AppNavigator({ routeName }: { routeName: keyof RootStackParamList | und
 
   // Destinos da barra trocam o histórico (Android: voltar do Treino/Dieta leva ao Início).
   const goBar = (name: BarItem) => {
-    if (!navigationRef.isReady() || name === active) return;
+    if (!navigationRef.isReady() || name === (routeName ?? 'Home')) return;
     navigationRef.reset({
       index: name === 'Home' ? 0 : 1,
       routes: name === 'Home' ? [{ name: 'Home' }] : [{ name: 'Home' }, { name }],
