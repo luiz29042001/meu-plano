@@ -34,3 +34,6 @@ Rigor: "parece ok" nao e evidencia.
 - Nao rode `tsc`/bundles/testes que a etapa anterior ja rodou no mesmo commit, salvo para provar uma correcao sua.
 - Sem muitas capturas de tela: prefira asserts de DOM/rede e leitura de texto. No maximo 6 imagens por rodada.
 - **QA enxuto:** use o roteiro salvo em `tests/qa/` (se nao existir, crie `tests/qa/harness.js` com o simulador do Supabase e deixe-o para as proximas telas). Gere so o bundle web; nao rode `tsc` nem o bundle Android (o construtor ja rodou). Uma rodada; nova rodada so reverifica os desvios corrigidos + regressao pelos scripts.
+
+## Revisao de interface (web)
+Alem da spec, invoque a skill **web-design-guidelines** sobre os arquivos de tela alterados (ela baixa a lista de regras atual da Vercel; se nao conseguir acessar ou a skill nao estiver instalada, avise no relatorio e siga sem ela). Inclua os achados de acessibilidade e UX numa secao propria do relatorio, separados dos desvios da spec.
