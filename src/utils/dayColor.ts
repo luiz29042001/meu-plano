@@ -6,17 +6,17 @@ import { palettes, type ColorScheme, type ColorToken, type ThemeColors } from '.
 
 /** Mapa fixo §2.1: cor do banco (maiúsculas, sem espaço) -> [claro, escuro]. */
 const DAY_COLOR_MAP: Record<string, [string, string]> = {
-  '#E07856': ['#A9502F', '#E07856'], // Push (Luiz)
-  '#E8572A': ['#A9502F', '#E07856'], // Push antiga
-  '#5A93D4': ['#376CA6', '#5A93D4'], // Pull (Luiz), Superior A (Usuária 2)
-  '#2A7BE8': ['#376CA6', '#5A93D4'], // Pull antiga
-  '#42B968': ['#2A7546', '#42B968'], // Legs (Luiz), Inferior B (Usuária 2)
-  '#27AE60': ['#2A7546', '#42B968'], // Legs antiga
-  '#E07A9A': ['#A6486B', '#E07A9A'], // Inferior A (Usuária 2)
-  '#A878D4': ['#7A4FA8', '#A878D4'], // Superior B (Usuária 2)
+  '#E07856': ['#9F4B2C', '#E4886A'], // Push (Luiz)
+  '#E8572A': ['#9F4B2C', '#E4886A'], // Push antiga
+  '#5A93D4': ['#34679E', '#73A3DA'], // Pull (Luiz), Superior A (Usuária 2)
+  '#2A7BE8': ['#34679E', '#73A3DA'], // Pull antiga
+  '#42B968': ['#297144', '#42B968'], // Legs (Luiz), Inferior B (Usuária 2)
+  '#27AE60': ['#297144', '#42B968'], // Legs antiga
+  '#E07A9A': ['#9F4567', '#E283A1'], // Inferior A (Usuária 2)
+  '#A878D4': ['#7A4FA8', '#B790DC'], // Superior B (Usuária 2)
   '#E0A85A': ['#8A5A12', '#E0A85A'], // Glúteos C (Usuária 2)
-  '#8E8E96': ['#6E6E6B', '#9A9893'], // Descanso
-  '#8E8E93': ['#6E6E6B', '#9A9893'], // Descanso
+  '#8E8E96': ['#646461', '#A2A09C'], // Descanso
+  '#8E8E93': ['#646461', '#A2A09C'], // Descanso
 };
 
 const MIN_CONTRAST = 4.5;

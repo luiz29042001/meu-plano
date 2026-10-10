@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchCompletions, fetchUserStats, fetchWorkoutDays } from '../services/workout';
-import { friendlyError } from '../utils/errors';
+import { friendlyError, isNetworkError } from '../utils/errors';
+import { reportNetworkError, reportNetworkOk } from '../utils/networkStatus';
 import type { WorkoutCompletion, UserStats, WorkoutDay, CalendarStatus } from '../types';
 
 export function useCalendar(year: number, month: number) {
@@ -33,12 +34,14 @@ export function useCalendar(year: number, month: number) {
         fetchWorkoutDays(programId),
       ]);
       if (my !== req.current) return;
+      reportNetworkOk();
       setCompletions(data);
       setStats(userStats);
       setProgramDays(days);
       setHasLoaded(true);
     } catch (e) {
       if (my !== req.current) return;
+      if (isNetworkError(e)) reportNetworkError();
       setCompletions([]);
       setError(friendlyError(e, 'Não foi possível carregar o calendário.'));
     } finally {

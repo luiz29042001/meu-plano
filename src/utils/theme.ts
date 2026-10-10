@@ -51,7 +51,7 @@ export const lightColors: ThemeColors = {
   cardHover: '#E9E9E6',
   cardAlt: '#ECECE9',
   surface: '#E4E4E1',
-  border: '#D4D4D0',
+  border: '#C8C8C3',
   borderStrong: '#262626',
   text: '#262626',
   textMuted: '#4D4D4B',
@@ -63,13 +63,13 @@ export const lightColors: ThemeColors = {
   greenDim: '#0F5E2D',
   onGreen: '#F1F1EF',
   dragShadow: 'rgba(38,38,38,0.18)',
-  pushColor: '#A9502F',
-  pullColor: '#376CA6',
-  legsColor: '#2A7546',
-  restColor: '#6E6E6B',
-  pinkColor: '#A6486B',
-  orange: '#8F5F10',
-  red: '#B23A45',
+  pushColor: '#9F4B2C',
+  pullColor: '#34679E',
+  legsColor: '#297144',
+  restColor: '#646461',
+  pinkColor: '#9F4567',
+  orange: '#895B0F',
+  red: '#B03944',
   purple: '#7A4FA8',
   suppColor: '#8A5A12',
 };
@@ -93,14 +93,14 @@ export const darkColors: ThemeColors = {
   greenDim: '#1AA34A',
   onGreen: '#222221',
   dragShadow: 'rgba(0,0,0,0.45)',
-  pushColor: '#E07856',
-  pullColor: '#5A93D4',
+  pushColor: '#E4886A',
+  pullColor: '#73A3DA',
   legsColor: '#42B968',
-  restColor: '#9A9893',
-  pinkColor: '#E07A9A',
+  restColor: '#A2A09C',
+  pinkColor: '#E283A1',
   orange: '#E8A94A',
-  red: '#E8787F',
-  purple: '#B48BDB',
+  red: '#EA8188',
+  purple: '#B790DC',
   suppColor: '#E0A85A',
 };
 
@@ -138,6 +138,7 @@ export const Font = {
 } as const;
 
 export const FontSize = {
+  /** Deprecated: nenhum uso (tamanho mínimo de texto = sm 13). */
   xs: 12,
   sm: 13,
   md: 14,
@@ -197,4 +198,22 @@ export const Touch = {
   min: 44,
   comfort: 48,
   primary: 56,
+} as const;
+
+/** Medidas de layout fixas (barra inferior, dock, coluna web, cronômetro no topo). */
+export const Layout = {
+  BAR_HEIGHT: 56,
+  DOCK_HEIGHT: 72,
+  COLUMN_MAX: 560,
+  TIMER_TOP_HEIGHT: 112,
+} as const;
+
+/** Durações de movimento em ms. Viram 0 com "reduzir movimento" (useMotion). */
+export const Motion = {
+  press: 80,
+  fill: 150,
+  enter: 200,
+  route: 150,
+  timer: 220,
+  pulse: 300,
 } as const;
