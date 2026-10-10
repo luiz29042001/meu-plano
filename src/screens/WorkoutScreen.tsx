@@ -304,7 +304,7 @@ export function WorkoutScreen() {
   const requestedSlug: string | undefined = route.params?.daySlug;
   const {
     days, checks, todayCompletion, nextWorkout,
-    status, error, retry, saveError, toggleCheck, completeWorkout, notes, saveNote,
+    status, error, retry, saveError, checkError, toggleCheck, completeWorkout, notes, saveNote,
   } = useWorkout();
   const { launchTimer } = useTimerActions();
   const timerInsets = useTimerInsets();
@@ -602,6 +602,9 @@ export function WorkoutScreen() {
                 onPress={handleComplete}
                 disabled={!allDone || saving}
               />
+            )}
+            {checkError && (
+              <Text style={styles.saveErrorText} accessibilityLiveRegion="polite">{checkError}</Text>
             )}
             {saveError && !justCompleted && (
               <Text style={styles.saveErrorText}>{saveError}</Text>

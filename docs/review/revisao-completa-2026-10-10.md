@@ -16,7 +16,7 @@ Method: static read of src/, App.tsx, public/, app.json, migrations, native modu
 
 ### High
 1. **No in-app account deletion / privacy policy.** Blocks Play publication (Roadmap 3) and LGPD for health data. No "excluir conta" or privacy link anywhere in src. (Roadmap items 1–3 prerequisite.)
-2. **`.mcp.json` and `google-services.json` are tracked in git** though `.gitignore` lists both. `.mcp.json` must be checked for secrets/local paths (Windows `cmd` launcher is what broke Playwright here). `google-services.json` is client config (not secret) but untrack for consistency. Fix: `git rm --cached` both.
+2. ~~`.mcp.json` / `google-services.json` tracked~~ **Retracted:** neither is in `.gitignore`; `google-services.json` must stay tracked (EAS needs it in the build archive). Only note: `.mcp.json` uses the Windows `cmd` launcher, so Playwright MCP does not start in the Linux cloud session.
 3. **`SCHEDULE_EXACT_ALARM` permission** (app.json + module manifest). Play restricts it to alarm/calendar apps; a rest timer needs a declaration/justification, otherwise review rejection. Alternative: `USE_EXACT_ALARM` is stricter still; or fall back to inexact + foreground notification countdown. Decide before Play submission.
 
 ### Medium
@@ -46,4 +46,4 @@ Method: static read of src/, App.tsx, public/, app.json, migrations, native modu
 Browser visual QA of both themes at 375px; APK check (tabs clipping, notification, exact-alarm prompt); Kotlin compile via EAS preview.
 
 ## Suggested order
-(1) untrack `.mcp.json`/`google-services.json`, remove `maximum-scale`, midnight/`toggleCheck`/variant fixes, drop dead deps — one small batch, I can do it now. (2) Account deletion + privacy policy (new feature, needs `/nova-feature` + Edge Function; Opus for security review). (3) Decide exact-alarm strategy before Play. (4) Create `tests/qa/`.
+(1) remove `maximum-scale`, midnight/`toggleCheck`/variant fixes, drop dead deps — one small batch, I can do it now. (2) Account deletion + privacy policy (new feature, needs `/nova-feature` + Edge Function; Opus for security review). (3) Decide exact-alarm strategy before Play. (4) Create `tests/qa/`.

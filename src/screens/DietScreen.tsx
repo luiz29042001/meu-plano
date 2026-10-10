@@ -297,7 +297,7 @@ export function DietScreen() {
             onChange={handleVariantChange}
           />
         )}
-        {saveFailed && <Text style={styles.saveFailed}>Não foi possível salvar sua escolha.</Text>}
+        {saveFailed && <Text style={styles.saveFailed}>Não foi possível salvar sua escolha. Mantivemos a anterior.</Text>}
         {!!current.banner && <Text style={styles.banner}>{plain(current.banner)}</Text>}
 
         {/* Total do dia */}

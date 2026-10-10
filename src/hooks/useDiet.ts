@@ -64,16 +64,18 @@ export function useDiet() {
 
   /** Troca a variante. Devolve false se não conseguiu salvar (a escolha continua na tela). */
   const changeVariant = useCallback(async (v: 'A' | 'B'): Promise<boolean> => {
+    const previous = variant;
     setVariant(v);
-    if (!userId) return false;
+    if (!userId) { setVariant(previous); return false; }
     try {
       await updateDietVariant(userId, v);
       refreshProfile();
       return true;
     } catch {
+      setVariant(previous); // o banco manteve a anterior: a tela volta para ela
       return false;
     }
-  }, [userId, refreshProfile]);
+  }, [userId, variant, refreshProfile]);
 
   let status: DietStatus;
   if (dietMode === 'plan') {

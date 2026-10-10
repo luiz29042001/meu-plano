@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { AppState } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -47,10 +48,17 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [checkError, setCheckError] = useState<string | null>(null);
 
   const loadReq = useRef(0);   // descarta respostas de cargas antigas
   const notesReq = useRef(0);  // descarta anotações antigas que chegam depois de um saveNote
 
+  // Re-renderiza ao voltar para o app: se virou o dia, `today` muda e os dados recarregam.
+  const [, setDayTick] = useState(0);
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', s => { if (s === 'active') setDayTick(n => n + 1); });
+    return () => sub.remove();
+  }, []);
   const today = todayISO();
 
   const load = useCallback(async () => {
@@ -103,11 +111,13 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
   const toggleCheck = useCallback(async (exerciseId: number, currentValue: boolean) => {
     if (!userId) return;
     const newValue = !currentValue;
+    setCheckError(null);
     setChecks(prev => ({ ...prev, [exerciseId]: newValue }));
     try {
       await upsertExerciseCheck(userId, exerciseId, today, newValue);
     } catch {
       setChecks(prev => ({ ...prev, [exerciseId]: currentValue }));
+      setCheckError('Não foi possível salvar a marcação. Confira a internet e tente de novo.');
     }
   }, [userId, today]);
 
@@ -181,6 +191,8 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
     error,
     /** Erro ao concluir o treino, em pt-BR. */
     saveError,
+    /** Erro ao marcar/desmarcar um exercício, em pt-BR. */
+    checkError,
     toggleCheck,
     completeWorkout,
     notes,
