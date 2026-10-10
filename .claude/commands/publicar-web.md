@@ -1,6 +1,6 @@
 ---
 description: Publica a versao web/PWA (GitHub Pages) apos checagens e confirmacao do Luiz
-model: claude-opus-5-5
+model: claude-sonnet-5-5
 argument-hint: [observacao opcional]
 ---
 Publique a versao web do app para a Usuária 2 e demais usuarios. Observacao dele (se houver): $ARGUMENTS

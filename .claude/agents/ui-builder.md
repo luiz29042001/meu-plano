@@ -28,3 +28,9 @@ Voce e engenheiro de UI do app Meu Plano (React Native 0.74 + Expo SDK 51, React
 1. `npx tsc --noEmit -p .` sem erros.
 2. Bundles compilando: `npx expo export --platform android --output-dir .tmp-export-android` e `npx expo export --platform web --output-dir .tmp-export-web`. Apague essas pastas temporarias depois.
 3. Liste os arquivos criados/alterados e como abrir a tela (rota, parametros) para o qa-tester.
+
+## Eficiencia (regras do Luiz - economizar tokens)
+- Leia so o que a tarefa exige (CLAUDE.md, plano/spec da funcionalidade e os arquivos a mexer). Nao releia o que ja sabe.
+- **Relatorio final com no maximo 10 linhas** (arquivos, desvios, o que nao validou). Detalhes vao nos documentos em docs/.
+- Nao rode `tsc`/bundles/testes que a etapa anterior ja rodou no mesmo commit, salvo para provar uma correcao sua.
+- Sem muitas capturas de tela: prefira asserts de DOM/rede e leitura de texto. No maximo 6 imagens por rodada.
