@@ -22,7 +22,7 @@ Skills used: ui-ux-pro-max (verdict searches + `pro-rules.md` checklist, section
 | D8 | Skip-with-confirm finish | Enabled at >= 1 exercise checked. If pending exist: `confirmAction('Concluir sem terminar tudo?', 'Faltam N exercícios. Registrar o treino mesmo assim?', 'Concluir')`. |
 | D9 | Bottom bar scope | Visible on every authenticated screen (Início, Treino, Dieta, Calendário, Perfil); active item on Calendário/Perfil = Início. Hidden on Login and while the keyboard is open. |
 | D10 | Back chevron | Removed on Treino and Dieta (bar replaces it); kept on Calendário and Perfil. |
-| D11 | Streak definition | `current_streak` in `user_stats` is consecutive **days** and breaks on rest days (Usuária 2 trains 5x, Luiz 6x) -> misleading. **Do not use it.** Home shows **weeks in a row at goal**, computed client-side from the last 12 weeks of completion dates (goal = number of non-rest program days). Hidden when 0. |
+| D11 | Streak | **Luiz decision: no streaks.** Home shows only **days trained this week** (week starts Monday, counted client-side from completion dates), as `N/meta` where meta = number of non-rest program days. No `current_streak`, no weekly-streak cell. Do not read `user_stats.current_streak`. |
 | D12 | Wake lock | Always on while Workout is focused and the workout is not completed; released on blur/background/completion. No setting (fewer toggles). Web: `navigator.wakeLock` (guarded). Android: `expo-keep-awake`. |
 | D13 | Auto-rest setting | Perfil: `Iniciar descanso ao marcar série` `Sim`/`Não`, default Sim, device-local (`devicePrefs.ts`). |
 | D14 | Offline detection | Web: `navigator.onLine` + events. Native: no NetInfo dependency; offline notice appears when a request fails with a network error and clears on the next success. |
@@ -198,7 +198,7 @@ Inter 600 13px, **sentence case**, `bg` text on `text` fill (inverted, unchanged
 3. (gap 32) `DayHeadline`: kicker `Próximo treino` (Tag `Feito hoje` when applicable), name hero (72, shrinks to 56 above 10 chars), muscles Inter 16.
 4. (gap 20) `NumbersRow`: `6` exercícios / `22` séries / `58` minutos, aprox.
 5. (gap 20) `PrimaryButton` `Começar treino` (or `Ver próximo treino` when done today). Note `Último treino: Push A.` Inter 14 muted.
-6. (gap 32) **Week block**: kicker `Esta semana` (Inter 13 muted), `WeekStrip`, then `NumbersRow` 2 cells: `4/6` + `treinos na semana` (numeral `green` when goal met) and `3` + `semanas seguidas na meta` (cell hidden when 0, row becomes 1 cell).
+6. (gap 32) **Week block**: kicker `Esta semana` (Inter 13 muted), `WeekStrip` (Monday first), then one `NumbersRow` cell: `4/6` + `treinos na semana` (numeral `green` when goal met). No streak.
 7. (gap 32) Hairline list, rows 56 with trailing `›`: `Calendário` / `Histórico de treinos`; `Perfil` / `Aparência, avisos e conta`.
 8. Bottom padding = `bottom` inset (bar + timer).
 
@@ -213,7 +213,7 @@ Wider web: same 560 column centered; no re-layout.
 | Ready | as above. |
 | Done today | Tag `Feito hoje`, CTA `Ver próximo treino`. |
 | Empty (no program) | `DayHeadline` `Sem programa` (rest color), `Você ainda não tem um programa de treino.` + OutlineButton `Atualizar`. Week block hidden. |
-| New account, no workouts | week block shows `0/6 treinos na semana`; streak cell hidden; note `Seu primeiro treino começa aqui.` |
+| New account, no workouts | week block shows `0/6 treinos na semana`; note `Seu primeiro treino começa aqui.` |
 | Error | `ErrorBlock` `Não foi possível carregar seu treino.` + cause + `Tentar de novo`. Bar still works. |
 | Offline | `Notice` (neutral edge) `Sem internet. Mostrando o último treino carregado.` if cached data exists, else Error. |
 | Extremes | Name > 10 chars shrinks; `Feito hoje` + long name stay on one line (name `numberOfLines 1`); `12/12`, `99+` clamp; 4-digit minutes impossible (cap 999). |
@@ -374,7 +374,7 @@ New dependency: **`expo-keep-awake ~13.0.2`** (`npx expo install expo-keep-awake
 4. `src/services/devicePrefs.ts`: `autoRest` pref get/set.
 5. `src/services/workout.ts`: `fetchRecentCompletionDates(userId, fromISO)` (dates only, last 12 weeks).
 6. `src/utils/weekStats.ts` (NEW): Monday-start week helpers, `weekCount(dates)`, `weeksAtGoal(dates, goal)` (local dates, `todayISO` rules; pitfall 2).
-7. `src/hooks/useWorkout.ts`: expose `recentDates`, `weekDone`, `weekGoal`, `weekStreak`; expose `checkError` flag already present; keep API otherwise.
+7. `src/hooks/useWorkout.ts`: expose `weekDone`, `weekGoal` (week Monday-first); no streak; expose `checkError` flag already present; keep API otherwise.
 8. `src/hooks/useSetProgress.ts` (NEW): per-day per-exercise set count (AsyncStorage; web localStorage via same API; try/catch; prune old days).
 9. `src/hooks/useKeepAwake.ts` + `.web.ts` (NEW): wake lock with release on blur/background.
 10. `src/hooks/useOnline.ts` (+ `.web.ts`), `src/hooks/useKeyboardVisible.ts` (NEW).
@@ -401,7 +401,7 @@ New dependency: **`expo-keep-awake ~13.0.2`** (`npx expo install expo-keep-awake
 - [ ] Last-load line: with note, without note, long note; editor opens from the whole row.
 - [ ] Notice: simulate 500 on check and on completion; offline (Playwright offline) banner; revert behavior.
 - [ ] Diet: hero `Agora`/`Próxima`/after-last-meal states by mocking the clock; totals collapsed/expanded; Substitutos/Dica buttons; variant failure notice.
-- [ ] Home: week strip with 0, 4, 6 of 6; streak hidden at 0; empty program; error; done-today.
+- [ ] Home: week strip with 0, 4, 6 of 6 (Monday-first); empty program; error; done-today.
 - [ ] Reduced motion (`prefers-reduced-motion`): no pulse, no transitions.
 - [ ] Zoom 200% and text size: display numerals do not clip; dock/bar grow.
 - [ ] Keyboard: Tab order matches visual; focus ring visible; Enter/Space on dock button.
@@ -424,4 +424,4 @@ New dependency: **`expo-keep-awake ~13.0.2`** (`npx expo install expo-keep-awake
 
 1. **Finishing with skipped exercises counts as a normal workout day** in the calendar and in the weekly goal (with a confirmation). Recommendation: yes.
 2. **Rest timer starts at the top of the screen** (compact) instead of the bottom for everyone who never moved it; it can still be moved. Recommendation: yes (keeps the `Série feita` button free).
-3. **"Sequência" on Início = weeks in a row at your weekly goal** (not consecutive days, which breaks on every rest day). Recommendation: yes.
+3. ~~Streak~~ **Decided by Luiz: no streaks; show days trained in the week, Monday start.**
