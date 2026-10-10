@@ -27,3 +27,6 @@ O app usa um unico Supabase, que e producao. Portanto:
 - **Conferir no celular (Android):** lista do que o Playwright NAO consegue validar e precisa ser visto no APK (texto cortado em abas, vibracao do cronometro, gestos nativos, area segura). Seja especifico sobre quais telas e o que olhar.
 
 Rigor: "parece ok" nao e evidencia.
+
+## Revisao de interface (web)
+Alem da spec, invoque a skill **web-design-guidelines** sobre os arquivos de tela alterados (ela baixa a lista de regras atual da Vercel; se nao conseguir acessar, avise no relatorio e siga sem ela). Inclua os achados de acessibilidade e UX numa secao propria do relatorio, separados dos desvios da spec.

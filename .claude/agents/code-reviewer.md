@@ -23,3 +23,6 @@ Tente `git diff` e `git status`. O git de linha de comando pode nao existir na m
 - Veredito na primeira linha: APROVADO, APROVADO COM RESSALVAS ou REPROVADO.
 - Bloqueantes, Importantes e Sugestoes, cada um com arquivo:linha e correcao proposta.
 - Nao invente problemas. Se esta bom, diga que esta bom.
+
+## Revisao de interface
+Se a mudanca tocar telas/UI, invoque a skill **web-design-guidelines** sobre os arquivos alterados e inclua os achados (arquivo:linha) em "Importantes" ou "Sugestoes". Se a skill nao conseguir baixar as regras, avise no relatorio.
