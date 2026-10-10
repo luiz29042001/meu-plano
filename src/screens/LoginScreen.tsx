@@ -6,6 +6,8 @@ import { makeStyles } from '../contexts/ThemeContext';
 import { Font, FontSize, LineHeight, Spacing, Tracking, Touch, numberLineHeight } from '../utils/theme';
 import { PrimaryButton } from '../components/Buttons';
 import { ErrorBlock } from '../components/ErrorBlock';
+import { Notice } from '../components/Notice';
+import { useOnline } from '../hooks/useOnline';
 
 const BENEFITS = [
   'Treino do seu programa',
@@ -37,6 +39,7 @@ const useStyles = makeStyles(c => ({
 export function LoginScreen() {
   const styles = useStyles();
   const { signIn } = useAuth();
+  const online = useOnline();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -68,6 +71,12 @@ export function LoginScreen() {
             </View>
           ))}
         </View>
+
+        {!online && (
+          <View style={styles.error}>
+            <Notice tone="neutral" text="Sem internet. Conecte-se para entrar." />
+          </View>
+        )}
 
         {error && (
           <View style={styles.error}>

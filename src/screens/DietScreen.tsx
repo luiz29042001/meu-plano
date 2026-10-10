@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useIsFocused } from '@react-navigation/native';
 import { useDiet } from '../hooks/useDiet';
 import { useTheme, makeStyles } from '../contexts/ThemeContext';
 import { useTimerInsets } from '../hooks/useTimerInsets';
@@ -11,7 +12,9 @@ import { DayHeadline, Tag } from '../components/DayHeadline';
 import { NumbersRow } from '../components/NumbersRow';
 import { Segmented } from '../components/Segmented';
 import { ErrorBlock } from '../components/ErrorBlock';
-import { LinkButton } from '../components/Buttons';
+import { OutlineButton } from '../components/Buttons';
+import { Notice } from '../components/Notice';
+import { useOnline } from '../hooks/useOnline';
 import { Skeleton } from '../components/Skeleton';
 import type { Meal, DietItem, DietVariant } from '../types';
 
@@ -31,16 +34,33 @@ function minutesOf(time: string): number | null {
   return m ? Number(m[1]) * 60 + Number(m[2]) : null;
 }
 
-/** Id da próxima refeição (primeira com horário ainda por vir). */
-function nextMealId(meals: Meal[]): string | null {
-  const now = new Date();
-  const nowMin = now.getHours() * 60 + now.getMinutes();
-  const next = meals.find(m => {
-    if (m.isAlternative || m.isSupp || m.isFasted) return false;
-    const t = minutesOf(m.time);
-    return t !== null && t >= nowMin;
-  });
-  return next?.id ?? null;
+const NOW_WINDOW_MIN = 45; // refeição conta como "Agora" até 45 min depois do horário
+
+const isRegular = (m: Meal) => !m.isAlternative && !m.isSupp && !m.isFasted;
+
+/**
+ * Refeição em destaque: "Agora" (horário <= agora < horário + 45 min) ou a próxima
+ * ainda por vir. `done` = passou da última refeição do dia. Sem horários legíveis -> null.
+ */
+function pickHero(meals: Meal[], nowMin: number):
+  | { kind: 'now' | 'next'; meal: Meal; inMin: number }
+  | { kind: 'done'; first: Meal }
+  | null {
+  const timed = meals.filter(isRegular).map(m => ({ m, t: minutesOf(m.time) })).filter(x => x.t !== null) as { m: Meal; t: number }[];
+  if (timed.length === 0) return null;
+  const current = timed.find(x => x.t <= nowMin && nowMin < x.t + NOW_WINDOW_MIN);
+  if (current) return { kind: 'now', meal: current.m, inMin: 0 };
+  const next = timed.find(x => x.t > nowMin);
+  if (next) return { kind: 'next', meal: next.m, inMin: next.t - nowMin };
+  return { kind: 'done', first: timed[0].m };
+}
+
+/** 80 -> "daqui a 1 h 20"; 20 -> "daqui a 20 min"; 120 -> "daqui a 2 h". */
+function relative(min: number): string {
+  if (min < 60) return `daqui a ${min} min`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m === 0 ? `daqui a ${h} h` : `daqui a ${h} h ${m}`;
 }
 
 const useStyles = makeStyles(c => ({
@@ -50,7 +70,6 @@ const useStyles = makeStyles(c => ({
   stateWrap: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.xxxl },
   pendingText: { marginTop: Spacing.md, fontFamily: Font.body, fontSize: FontSize.base, color: c.textMuted, lineHeight: LineHeight.base },
   banner: { marginTop: Spacing.md, fontFamily: Font.body, fontSize: FontSize.md, color: c.textMuted, lineHeight: LineHeight.md },
-  saveFailed: { marginTop: Spacing.md, fontFamily: Font.body, fontSize: FontSize.md, color: c.red },
   kcalRow: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.sm },
   kcal: {
     fontFamily: Font.condSemi, fontSize: FontSize.hero, lineHeight: numberLineHeight(FontSize.hero),
@@ -58,7 +77,7 @@ const useStyles = makeStyles(c => ({
   },
   kcalUnit: { fontFamily: Font.body, fontSize: FontSize.base, color: c.textMuted, paddingBottom: Spacing.sm },
   macroNote: { marginTop: Spacing.md, fontFamily: Font.body, fontSize: FontSize.sm, color: c.textMuted, lineHeight: LineHeight.sm },
-  meals: { marginTop: Spacing.xxl, borderTopWidth: 1, borderTopColor: c.border },
+  meals: { borderTopWidth: 1, borderTopColor: c.border },
   meal: { borderBottomWidth: 1, borderBottomColor: c.border },
   mealHead: { minHeight: Touch.primary, flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.sm },
   mealHover: { backgroundColor: c.cardHover },
@@ -70,6 +89,7 @@ const useStyles = makeStyles(c => ({
   mealInfo: { flex: 1, gap: 2 },
   mealTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flexWrap: 'wrap' },
   mealName: { fontFamily: Font.bodyMedium, fontSize: FontSize.base, color: c.text },
+  mealNamePast: { color: c.textMuted },
   mealSub: { fontFamily: Font.body, fontSize: FontSize.sm, color: c.textMuted },
   mealKcal: {
     fontFamily: Font.condSemi, fontSize: FontSize.lg, color: c.text, includeFontPadding: false,
@@ -80,33 +100,57 @@ const useStyles = makeStyles(c => ({
     color: c.textMuted, includeFontPadding: false,
   },
   items: { backgroundColor: c.cardAlt, marginBottom: Spacing.sm },
-  note: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, fontFamily: Font.body, fontSize: FontSize.sm, color: c.textMuted, lineHeight: LineHeight.sm },
+  note: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, fontFamily: Font.body, fontSize: FontSize.md, color: c.textMuted, lineHeight: LineHeight.md },
   item: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderTopWidth: 1, borderTopColor: c.border },
   itemTop: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md },
   itemInfo: { flex: 1 },
-  itemName: { fontFamily: Font.bodyMedium, fontSize: FontSize.md, color: c.text },
-  itemDetail: { fontFamily: Font.body, fontSize: FontSize.sm, color: c.textMuted, marginTop: 2 },
-  itemKcal: { fontFamily: Font.condSemi, fontSize: FontSize.base, color: c.text, includeFontPadding: false },
-  itemActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.xs },
+  itemName: { fontFamily: Font.bodyMedium, fontSize: FontSize.base, color: c.text },
+  itemDetail: { fontFamily: Font.body, fontSize: FontSize.md, color: c.textMuted, marginTop: 2 },
+  itemKcal: { fontFamily: Font.condSemi, fontSize: FontSize.lg, color: c.text, includeFontPadding: false },
+  itemActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm },
+  itemBtn: { alignSelf: 'auto', flexGrow: 1, minWidth: 104 },
   panel: { marginTop: Spacing.sm, gap: Spacing.sm },
-  panelTitle: {
-    fontFamily: Font.condSemi, fontSize: FontSize.base, color: c.text,
-    textTransform: 'uppercase', letterSpacing: Tracking.caps,
-  },
+  panelTitle: { fontFamily: Font.bodySemi, fontSize: FontSize.base, color: c.text },
   sub: { backgroundColor: c.card, padding: Spacing.md, gap: 2 },
   subTop: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.sm },
-  subName: { flex: 1, fontFamily: Font.bodyMedium, fontSize: FontSize.sm, color: c.text },
-  subKcal: { fontFamily: Font.condSemi, fontSize: FontSize.md, color: c.text },
-  subQty: { fontFamily: Font.body, fontSize: FontSize.sm, color: c.textMuted },
-  subNote: { fontFamily: Font.body, fontSize: FontSize.sm, color: c.textMuted, lineHeight: LineHeight.sm },
-  tipText: { fontFamily: Font.body, fontSize: FontSize.sm, color: c.textMuted, lineHeight: LineHeight.sm },
-  hydration: { marginTop: Spacing.xxl, gap: Spacing.sm },
+  subName: { flex: 1, fontFamily: Font.bodyMedium, fontSize: FontSize.md, color: c.text },
+  subKcal: { fontFamily: Font.condSemi, fontSize: FontSize.lg, color: c.text },
+  subQty: { fontFamily: Font.body, fontSize: FontSize.md, color: c.textMuted },
+  subNote: { fontFamily: Font.body, fontSize: FontSize.md, color: c.textMuted, lineHeight: LineHeight.md },
+  tipText: { marginTop: Spacing.sm, fontFamily: Font.body, fontSize: FontSize.md, color: c.textMuted, lineHeight: LineHeight.md },
+  hydration: { marginTop: Spacing.xxxl, gap: Spacing.sm },
   hydrationTitle: {
     fontFamily: Font.condSemi, fontSize: FontSize.xl, color: c.text,
     textTransform: 'uppercase', letterSpacing: Tracking.caps,
   },
   hydrationText: { fontFamily: Font.body, fontSize: FontSize.base, color: c.textMuted, lineHeight: LineHeight.base },
   skel: { marginTop: Spacing.md },
+  notice: { marginTop: Spacing.md },
+  kicker: { fontFamily: Font.body, fontSize: FontSize.sm, color: c.textMuted, marginTop: Spacing.xxxl, marginBottom: Spacing.md },
+  hero: { marginTop: Spacing.xl },
+  heroTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  heroRel: { fontFamily: Font.body, fontSize: FontSize.md, color: c.textMuted },
+  heroName: {
+    marginTop: Spacing.sm, fontFamily: Font.condSemi, fontSize: FontSize.xxl, lineHeight: numberLineHeight(FontSize.xxl) + 4,
+    color: c.text, textTransform: 'uppercase', letterSpacing: Tracking.caps, includeFontPadding: false,
+  },
+  heroRow: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.lg, marginTop: Spacing.xs },
+  heroTime: {
+    fontFamily: Font.condBold, fontSize: FontSize.xxxl, lineHeight: numberLineHeight(FontSize.xxxl),
+    color: c.text, includeFontPadding: false, fontVariant: ['tabular-nums'],
+  },
+  heroKcal: {
+    fontFamily: Font.condSemi, fontSize: FontSize.numeral, lineHeight: numberLineHeight(FontSize.numeral),
+    color: c.textMuted, includeFontPadding: false, fontVariant: ['tabular-nums'],
+  },
+  heroMacros: { marginTop: Spacing.sm, fontFamily: Font.body, fontSize: FontSize.md, color: c.textMuted },
+  heroItems: { marginTop: Spacing.md, borderTopWidth: 1, borderTopColor: c.border },
+  totalRow: {
+    minHeight: Touch.primary, flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
+    borderTopWidth: 1, borderBottomWidth: 1, borderColor: c.border, paddingVertical: Spacing.sm,
+  },
+  totalLabel: { fontFamily: Font.bodyMedium, fontSize: FontSize.base, color: c.text },
+  totalValue: { flex: 1, textAlign: 'right', fontFamily: Font.body, fontSize: FontSize.md, color: c.textMuted },
 }));
 
 function MealItem({ item }: { item: DietItem }) {
@@ -127,15 +171,17 @@ function MealItem({ item }: { item: DietItem }) {
       {(hasSubs || !!item.tip) && (
         <View style={styles.itemActions}>
           {hasSubs && (
-            <LinkButton
+            <OutlineButton
               label={showSubs ? 'Ocultar substitutos' : 'Substitutos'}
               onPress={() => { setShowSubs(v => !v); setShowTip(false); }}
+              style={styles.itemBtn}
             />
           )}
           {!!item.tip && (
-            <LinkButton
+            <OutlineButton
               label={showTip ? 'Ocultar dica' : 'Dica'}
               onPress={() => { setShowTip(v => !v); setShowSubs(false); }}
+              style={styles.itemBtn}
             />
           )}
         </View>
@@ -161,10 +207,10 @@ function MealItem({ item }: { item: DietItem }) {
   );
 }
 
-function MealCard({ meal, isNext }: { meal: Meal; isNext: boolean }) {
+function MealCard({ meal, past }: { meal: Meal; past: boolean }) {
   const styles = useStyles();
   const { resolveAccent } = useTheme();
-  const [open, setOpen] = useState(isNext);
+  const [open, setOpen] = useState(false);
   const isSpecial = meal.isSupp || meal.isFasted;
   const accent = resolveAccent(meal.color);
 
@@ -185,8 +231,7 @@ function MealCard({ meal, isNext }: { meal: Meal; isNext: boolean }) {
         <Text style={styles.mealTime}>{meal.time}</Text>
         <View style={styles.mealInfo}>
           <View style={styles.mealTitleRow}>
-            <Text style={styles.mealName}>{meal.label}</Text>
-            {isNext && <Tag label="Próxima" />}
+            <Text style={[styles.mealName, past && styles.mealNamePast]}>{meal.label}</Text>
           </View>
           <Text style={styles.mealSub}>{sub}</Text>
         </View>
@@ -216,14 +261,27 @@ function legacyVariants(): DietVariant[] {
 
 export function DietScreen() {
   const styles = useStyles();
-  const { colors } = useTheme();
-  const { status, error, plan: dbPlan, variant, changeVariant, retry } = useDiet();
+  const { colors, resolveAccent } = useTheme();
+  const { status, error, plan: dbPlan, variant, changeVariant, retry, refresh } = useDiet();
   const timerInsets = useTimerInsets();
+  const online = useOnline();
+  const focused = useIsFocused();
   const [saveFailed, setSaveFailed] = useState(false);
+  const [showTotals, setShowTotals] = useState(false);
+
+  // Relógio de 60 s enquanto a tela está em foco: atualiza Agora/Próxima.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    if (!focused) return;
+    setNow(new Date());
+    const id = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(id);
+  }, [focused]);
 
   // Dieta fixa do código só com status 'fixed' (perfil carregado e diet_fixed = true)
   const isLegacy = status === 'fixed';
-  const variants: DietVariant[] = isLegacy ? legacyVariants() : (dbPlan?.data.variants ?? []);
+  const legacy = useMemo(() => (isLegacy ? legacyVariants() : null), [isLegacy]);
+  const variants: DietVariant[] = legacy ?? (dbPlan?.data.variants ?? []);
   const current = variants.find(v => v.key === variant) ?? variants[0];
   const meals = current?.meals ?? [];
   // Totais ignoram refeições com isAlternative (armadilha 10): calcTotals já filtra.
@@ -239,10 +297,11 @@ export function DietScreen() {
   if (status === 'pending') {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
-        <ScreenHeader title="Dieta" />
+        <ScreenHeader title="Dieta" back={false} />
         <View style={styles.stateWrap}>
           <DayHeadline label="Em preparação" color={colors.restColor} />
           <Text style={styles.pendingText}>Sua dieta ainda está sendo preparada pela nutricionista.</Text>
+          <OutlineButton label="Atualizar" onPress={refresh} style={styles.skel} />
         </View>
       </SafeAreaView>
     );
@@ -251,7 +310,7 @@ export function DietScreen() {
   if (status === 'loading') {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
-        <ScreenHeader title="Dieta" />
+        <ScreenHeader title="Dieta" back={false} />
         <View style={styles.stateWrap}>
           <Skeleton width={220} height={72} />
           {[0, 1, 2, 3, 4].map(i => <Skeleton key={i} height={56} style={styles.skel} />)}
@@ -263,7 +322,7 @@ export function DietScreen() {
   if (status === 'error' || !current) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
-        <ScreenHeader title="Dieta" />
+        <ScreenHeader title="Dieta" back={false} />
         <View style={styles.stateWrap}>
           <ErrorBlock
             title="Não foi possível carregar sua dieta."
@@ -275,13 +334,21 @@ export function DietScreen() {
     );
   }
 
-  const nextId = nextMealId(meals);
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const hero = pickHero(meals, nowMin);
+  const heroMeal = hero && hero.kind !== 'done' ? hero.meal : null;
+  const listMeals = meals.filter(m => m.id !== heroMeal?.id);
+  const isPast = (m: Meal) => {
+    const t = minutesOf(m.time);
+    return t !== null && isRegular(m) && t + NOW_WINDOW_MIN <= nowMin;
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScreenHeader
         title="Dieta"
         subtitle={isLegacy ? 'Déficit calórico' : (dbPlan?.data.name ?? 'Plano alimentar')}
+        back={false}
       />
 
       <ScrollView
@@ -289,46 +356,108 @@ export function DietScreen() {
         showsVerticalScrollIndicator={false}
       >
         {timerInsets.top > 0 && <View style={{ height: timerInsets.top }} />}
-        {variants.length > 1 && (
-          <Segmented
-            label="Variante da dieta"
-            options={variants.map(v => ({ value: v.key, label: variantLabel(v.label) }))}
-            value={current.key}
-            onChange={handleVariantChange}
-          />
-        )}
-        {saveFailed && <Text style={styles.saveFailed}>Não foi possível salvar sua escolha. Mantivemos a anterior.</Text>}
-        {!!current.banner && <Text style={styles.banner}>{plain(current.banner)}</Text>}
-
-        {/* Total do dia */}
-        <View style={styles.block}>
-          <View style={styles.kcalRow}>
-            <Text style={styles.kcal} numberOfLines={1} maxFontSizeMultiplier={1.2}>{fmt(totals.kcal)}</Text>
-            <Text style={styles.kcalUnit}>kcal no dia</Text>
+        {!online && (
+          <View style={styles.notice}>
+            <Notice tone="neutral" text="Sem internet. Mostrando a última dieta carregada." />
           </View>
-          <View style={styles.block}>
-            <NumbersRow
-              valueSize={FontSize.xxl}
-              items={[
-                { value: `${totals.p}g`, label: isLegacy ? 'proteína (2 g/kg)' : 'proteína' },
-                { value: `${totals.c}g`, label: 'carboidrato' },
-                { value: `${totals.g}g`, label: 'gordura' },
-              ]}
+        )}
+        {saveFailed && (
+          <View style={styles.notice}>
+            <Notice text="Não foi possível salvar sua escolha. Mantivemos a anterior." />
+          </View>
+        )}
+        {variants.length > 1 && (
+          <View style={{ marginTop: Spacing.sm }}>
+            <Segmented
+              label="Variante da dieta"
+              options={variants.map(v => ({ value: v.key, label: variantLabel(v.label) }))}
+              value={current.key}
+              onChange={handleVariantChange}
             />
           </View>
-          <Text style={styles.macroNote}>
-            {isLegacy
-              ? `Meta diária de perda de gordura: TMB Mifflin × 1,65 (ativo, 1h de treino 6×/semana) − 20% ≈ ${fmt(totals.kcal)} kcal.`
-              : `${dbPlan?.data.subtitle ? `${dbPlan.data.subtitle}. ` : ''}${dbPlan?.data.note ?? ''}`}
-          </Text>
-        </View>
+        )}
+        {!!current.banner && <Text style={styles.banner}>{plain(current.banner)}</Text>}
 
-        {/* Refeições */}
+        {/* Refeição em destaque */}
+        {heroMeal && hero && hero.kind !== 'done' && (
+          <View
+            style={styles.hero}
+            accessible={false}
+          >
+            <View
+              style={styles.heroTop}
+              accessible
+              accessibilityLabel={`${hero.kind === 'now' ? 'Agora' : 'Próxima refeição'}: ${heroMeal.label}, ${heroMeal.time}${heroMeal.kcal > 0 ? `, ${heroMeal.kcal} quilocalorias` : ''}`}
+            >
+              <Tag label={hero.kind === 'now' ? 'Agora' : 'Próxima'} />
+              {hero.kind === 'next' && <Text style={styles.heroRel}>{relative(hero.inMin)}</Text>}
+            </View>
+            <Text style={styles.heroName} numberOfLines={2} maxFontSizeMultiplier={1.2}>{heroMeal.label}</Text>
+            <View style={styles.heroRow}>
+              <Text style={styles.heroTime} maxFontSizeMultiplier={1.2}>{heroMeal.time}</Text>
+              {heroMeal.kcal > 0 && <Text style={styles.heroKcal} maxFontSizeMultiplier={1.2}>{fmt(heroMeal.kcal)} kcal</Text>}
+            </View>
+            <Text style={styles.heroMacros}>
+              P {heroMeal.macros.p}g · C {heroMeal.macros.c}g · G {heroMeal.macros.g}g
+            </Text>
+            {heroMeal.note ? <Text style={styles.note}>{heroMeal.note}</Text> : null}
+            <View style={styles.heroItems}>
+              {heroMeal.items.map((item, i) => <MealItem key={`${current.key}-${heroMeal.id}-${i}`} item={item} />)}
+            </View>
+          </View>
+        )}
+        {hero && hero.kind === 'done' && (
+          <View style={styles.hero}>
+            <Text style={styles.heroName} numberOfLines={2} accessibilityRole="header">Refeições de hoje concluídas</Text>
+            <Text style={styles.heroMacros}>Amanhã, {hero.first.time} · {hero.first.label}</Text>
+          </View>
+        )}
+
+        {/* Todas as refeições */}
+        <Text style={styles.kicker}>Todas as refeições</Text>
         <View style={styles.meals}>
-          {meals.map(meal => (
-            <MealCard key={`${current.key}-${meal.id}`} meal={meal} isNext={meal.id === nextId} />
+          {listMeals.map(meal => (
+            <MealCard key={`${current.key}-${meal.id}`} meal={meal} past={isPast(meal)} />
           ))}
         </View>
+
+        {/* Total do dia */}
+        <Pressable
+          onPress={() => setShowTotals(v => !v)}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: showTotals }}
+          accessibilityLabel={`Total do dia: ${fmt(totals.kcal)} quilocalorias, proteína ${totals.p} gramas, carboidrato ${totals.c} gramas, gordura ${totals.g} gramas`}
+          style={({ pressed }) => [styles.totalRow, pressed && styles.mealHover]}
+        >
+          <Text style={styles.totalLabel}>Total do dia</Text>
+          <Text style={styles.totalValue} numberOfLines={2}>
+            {fmt(totals.kcal)} kcal · P {totals.p}g · C {totals.c}g · G {totals.g}g
+          </Text>
+          <Text style={styles.mealPlus}>{showTotals ? '−' : '+'}</Text>
+        </Pressable>
+        {showTotals && (
+          <View style={styles.block}>
+            <View style={styles.kcalRow}>
+              <Text style={styles.kcal} numberOfLines={1} maxFontSizeMultiplier={1.2}>{fmt(totals.kcal)}</Text>
+              <Text style={styles.kcalUnit}>kcal no dia</Text>
+            </View>
+            <View style={styles.block}>
+              <NumbersRow
+                valueSize={FontSize.xxl}
+                items={[
+                  { value: `${totals.p}g`, label: isLegacy ? 'proteína (2 g/kg)' : 'proteína' },
+                  { value: `${totals.c}g`, label: 'carboidrato' },
+                  { value: `${totals.g}g`, label: 'gordura' },
+                ]}
+              />
+            </View>
+            <Text style={styles.macroNote}>
+              {isLegacy
+                ? `Meta diária de perda de gordura: TMB Mifflin × 1,65 (ativo, 1h de treino 6×/semana) − 20% ≈ ${fmt(totals.kcal)} kcal.`
+                : `${dbPlan?.data.subtitle ? `${dbPlan.data.subtitle}. ` : ''}${dbPlan?.data.note ?? ''}`}
+            </Text>
+          </View>
+        )}
 
         {/* Hidratação */}
         <View style={styles.hydration}>
