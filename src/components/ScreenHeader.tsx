@@ -12,6 +12,7 @@ const useStyles = makeStyles(c => ({
     height: HEADER_HEIGHT, flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: Spacing.sm, gap: Spacing.xs,
   },
+  headerNoBack: { paddingHorizontal: Spacing.xl },
   back: {
     width: Touch.min, height: Touch.min, alignItems: 'center', justifyContent: 'center',
     borderRadius: Radius.sm,
@@ -23,7 +24,7 @@ const useStyles = makeStyles(c => ({
   },
   titleWrap: { flex: 1 },
   sub: {
-    fontFamily: Font.body, fontSize: FontSize.xs, color: c.textMuted,
+    fontFamily: Font.body, fontSize: FontSize.sm, color: c.textMuted,
     includeFontPadding: false,
   },
   title: {
@@ -34,12 +35,13 @@ const useStyles = makeStyles(c => ({
 }));
 
 export function ScreenHeader({
-  title, subtitle, right,
-}: { title: string; subtitle?: string; right?: React.ReactNode }) {
+  title, subtitle, right, back = true,
+}: { title: string; subtitle?: string; right?: React.ReactNode; back?: boolean }) {
   const styles = useStyles();
   const navigation = useNavigation<any>();
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, !back && styles.headerNoBack]}>
+      {back ? (
       <Pressable
         onPress={() => navigation.goBack()}
         accessibilityRole="button"
@@ -48,6 +50,7 @@ export function ScreenHeader({
       >
         <Text style={styles.backText}>‹</Text>
       </Pressable>
+      ) : null}
       <View style={styles.titleWrap}>
         {subtitle ? <Text style={styles.sub} numberOfLines={1}>{subtitle}</Text> : null}
         <Text style={styles.title} numberOfLines={1} accessibilityRole="header">{title}</Text>

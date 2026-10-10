@@ -11,6 +11,9 @@ const useStyles = makeStyles(c => ({
     backgroundColor: c.primary, borderRadius: Radius.sm,
   },
   primaryDisabled: { backgroundColor: c.surface },
+  done: { backgroundColor: c.green },
+  doneHover: { backgroundColor: c.greenDim },
+  doneText: { color: c.onGreen },
   primaryText: {
     fontFamily: Font.condSemi, fontSize: FontSize.title, color: c.onPrimary,
     textTransform: 'uppercase', letterSpacing: Tracking.caps, includeFontPadding: false,
@@ -50,8 +53,8 @@ interface BaseProps {
 
 /** Botão principal: tinta no claro, verde no escuro (token `primary`). */
 export function PrimaryButton({
-  label, onPress, disabled, loading, accessibilityLabel, style, leadingText,
-}: BaseProps & { loading?: boolean; leadingText?: string }) {
+  label, onPress, disabled, loading, accessibilityLabel, style, leadingText, tone = 'default',
+}: BaseProps & { loading?: boolean; leadingText?: string; tone?: 'default' | 'done' }) {
   const styles = useStyles();
   const { colors } = useTheme();
   const off = !!disabled || !!loading;
@@ -64,14 +67,18 @@ export function PrimaryButton({
       accessibilityState={{ disabled: off, busy: !!loading }}
       style={({ pressed }) => [
         styles.primary,
+        tone === 'done' && styles.done,
         disabled && !loading && styles.primaryDisabled,
-        pressed && { opacity: 0.85 },
+        pressed && (tone === 'done' ? styles.doneHover : { opacity: 0.85 }),
         style,
       ]}
     >
-      {loading && <ActivityIndicator color={colors.onPrimary} />}
+      {loading && <ActivityIndicator color={tone === 'done' ? colors.onGreen : colors.onPrimary} />}
       {!loading && !!leadingText && <Text style={[styles.primaryLead, disabled && styles.primaryTextDisabled]}>{leadingText}</Text>}
-      <Text style={[styles.primaryText, disabled && !loading && styles.primaryTextDisabled]} numberOfLines={1}>
+      <Text
+        style={[styles.primaryText, tone === 'done' && styles.doneText, disabled && !loading && styles.primaryTextDisabled]}
+        numberOfLines={1}
+      >
         {label}
       </Text>
     </Pressable>
@@ -112,7 +119,7 @@ export function OutlineButton({
   );
 }
 
-/** Link de ação: Inter 500, sublinhado, área >= 44px. */
+/** Link de ação: Inter 500, sublinhado, área >= 44px. Só para ações raras e inline (nunca por série/refeição). */
 export function LinkButton({ label, onPress, accessibilityLabel, style, disabled }: BaseProps) {
   const styles = useStyles();
   return (

@@ -25,7 +25,7 @@ export interface TimerActions {
   toggleTimer(): void;
   resetTimer(): void;
   setPreset(seconds: number): void;
-  /** "+15 s": rodando, empurra o término; pausado/terminado, soma ao tempo parado. */
+  /** "+30 s": rodando, empurra o término; pausado/terminado, soma ao tempo parado. */
   addTime(seconds: number): void;
 }
 
@@ -38,6 +38,10 @@ export interface TimerLayout {
   panelHeight: number;
   /** Só o FloatingTimer chama (onLayout). */
   setPanelHeight(h: number): void;
+  /** Altura de uma barra fixa acima da barra de abas (dock do treino); 0 quando não há. */
+  bottomOffset: number;
+  /** Só o WorkoutDock chama ao montar/desmontar. */
+  setBottomOffset(h: number): void;
 }
 
 const ActionsContext = createContext<TimerActions | null>(null);
@@ -260,8 +264,9 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
   }), [launchTimer, closeTimer, toggleTimer, resetTimer, setPreset, addTime]);
 
   // ─── Layout (posição salva no aparelho + altura medida) ────────────────────
-  const [position, setPositionState] = useState<TimerPosition>('bottom');
+  const [position, setPositionState] = useState<TimerPosition>('top');
   const [measuredHeight, setMeasuredHeight] = useState(0);
+  const [bottomOffset, setBottomOffsetState] = useState(0);
   const positionTouchedRef = useRef(false);
 
   useEffect(() => {
@@ -284,13 +289,20 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     setMeasuredHeight(prev => (prev === rounded ? prev : rounded));
   }, []);
 
+  const setBottomOffset = useCallback((h: number) => {
+    const rounded = Math.max(0, Math.round(h));
+    setBottomOffsetState(prev => (prev === rounded ? prev : rounded));
+  }, []);
+
   const visible = timerState.visible;
   const layout = useMemo<TimerLayout>(() => ({
     position,
     setPosition,
     panelHeight: visible ? measuredHeight : 0,
     setPanelHeight,
-  }), [position, setPosition, visible, measuredHeight, setPanelHeight]);
+    bottomOffset,
+    setBottomOffset,
+  }), [position, setPosition, visible, measuredHeight, setPanelHeight, bottomOffset, setBottomOffset]);
 
   return (
     <ActionsContext.Provider value={actions}>

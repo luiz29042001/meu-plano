@@ -1,5 +1,6 @@
 // Cronômetro de descanso, flutuante sobre todas as telas (spec §6.3 e §12).
-// - Duas posições fixas: base (padrão, completo) ou topo (compacto, abaixo do cabeçalho).
+// - Duas posições fixas: topo (padrão, compacto, abaixo do cabeçalho) ou base (completo,
+//   acima do dock do treino e da barra inferior).
 // - Mover: segurar ~350 ms e arrastar na vertical, ou o botão ↑/↓ (alternativa sem gesto).
 // - ARMADILHA 4: aqui só se LÊ o estado. O tempo vem de `endsAt` no TimerContext;
 //   mover o painel nunca toca nele. A cor do dia é traduzida na renderização.
@@ -17,9 +18,10 @@ import {
 } from '../contexts/TimerContext';
 import { makeStyles, useTheme } from '../contexts/ThemeContext';
 import { useRestNotification } from '../hooks/useRestNotification';
+import { useKeyboardVisible } from '../hooks/useKeyboardVisible';
 import { HEADER_HEIGHT } from './ScreenHeader';
 import { OutlineButton, LinkButton } from './Buttons';
-import { Font, FontSize, LineHeight, Radius, Spacing, Touch, Tracking, numberLineHeight } from '../utils/theme';
+import { Font, FontSize, Layout, LineHeight, Radius, Spacing, Touch, Tracking, numberLineHeight } from '../utils/theme';
 
 const PRESETS = [30, 60, 90, 120];
 const LONG_PRESS_MS = 350;
@@ -27,7 +29,7 @@ const FLING_VELOCITY = 500; // px/s (= 0,5 px/ms)
 const SNAP_MS = 220;
 const PICK_SCALE = 1.02;
 // Alturas aproximadas de cada posição, usadas só até a primeira medição real.
-const EST_HEIGHT: Record<TimerPosition, number> = { bottom: 225, top: 112 };
+const EST_HEIGHT: Record<TimerPosition, number> = { bottom: 225, top: Layout.TIMER_TOP_HEIGHT };
 
 type Geo = {
   H: number; h: number; pos: TimerPosition; topAnchor: number; hTop: number; hBottom: number; reduce: boolean;
@@ -53,7 +55,7 @@ const useStyles = makeStyles(c => ({
     paddingHorizontal: Spacing.xl,
     borderColor: c.border,
   },
-  panelBottom: { bottom: 0, borderTopWidth: 1, paddingTop: Spacing.xl, paddingBottom: Spacing.lg },
+  panelBottom: { borderTopWidth: 1, paddingTop: Spacing.xl, paddingBottom: Spacing.lg },
   panelTop: { borderBottomWidth: 1, paddingTop: Spacing.md, paddingBottom: Spacing.xl },
   panelLifted: {
     borderColor: c.borderStrong, // só a cor muda: a espessura fica a mesma (altura estável no arraste)
@@ -78,12 +80,12 @@ const useStyles = makeStyles(c => ({
     letterSpacing: Tracking.tighter, color: c.text, includeFontPadding: false,
     fontVariant: ['tabular-nums'],
   },
-  timeCompact: { fontSize: FontSize.display, lineHeight: numberLineHeight(FontSize.display) },
+  timeCompact: { fontSize: FontSize.xxxl, lineHeight: numberLineHeight(FontSize.xxxl) },
   timeBlock: { marginTop: Spacing.xs, marginBottom: Spacing.md },
   actions: { flexDirection: 'row', gap: Spacing.sm },
   actionBtn: { flex: 1, alignSelf: 'auto' },
   compactRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.xs },
-  compactBtn: { minWidth: 64, paddingHorizontal: Spacing.md, alignSelf: 'auto' },
+  compactBtn: { minWidth: 56, paddingHorizontal: Spacing.sm, alignSelf: 'auto' },
   spacer: { flex: 1 },
   presetsRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.md },
   preset: {
@@ -119,12 +121,15 @@ const useStyles = makeStyles(c => ({
 export function FloatingTimer() {
   const timerState = useTimerState();
   const { closeTimer, toggleTimer, setPreset, addTime } = useTimerActions();
-  const { position, setPosition, setPanelHeight } = useTimerLayout();
+  const { position, setPosition, setPanelHeight, bottomOffset } = useTimerLayout();
   const styles = useStyles();
   const { colors, dayColor } = useTheme();
   const insets = useSafeAreaInsets();
   const rest = useRestNotification();
   const reduceMotion = useReducedMotion();
+  const keyboard = useKeyboardVisible();
+  // Base do painel de baixo: acima da barra inferior (+ dock do treino). Sem teclado.
+  const bottomAnchor = keyboard ? 0 : Layout.BAR_HEIGHT + insets.bottom + bottomOffset;
 
   const [layerH, setLayerH] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -149,10 +154,10 @@ export function FloatingTimer() {
   // Geometria para o gesto (thread de UI).
   useEffect(() => {
     geo.value = {
-      H: layerH, h: heights.current[position], pos: position, topAnchor,
+      H: layerH - bottomAnchor, h: heights.current[position], pos: position, topAnchor,
       hTop: heights.current.top, hBottom: heights.current.bottom, reduce: reduceMotion,
     };
-  }, [geo, layerH, position, topAnchor, reduceMotion, visible]);
+  }, [geo, layerH, bottomAnchor, position, topAnchor, reduceMotion, visible]);
 
   // Mudou de posição: o painel já está na nova âncora, zera o deslocamento do arraste.
   useLayoutEffect(() => {
@@ -313,7 +318,6 @@ export function FloatingTimer() {
     <View style={styles.labelRow}>
       <Text style={[styles.label, finished && styles.labelDone]}>{title}</Text>
       {!!label && <Text style={styles.exercise} numberOfLines={1}>{label}</Text>}
-      {compact && <LinkButton label="Fechar" onPress={closeTimer} />}
     </View>
   );
 
@@ -356,7 +360,7 @@ export function FloatingTimer() {
           </View>
           <View
             pointerEvents="none"
-            style={[styles.zone, { bottom: 0, height: heights.current.bottom }, activeZone === 'bottom' && styles.zoneActive]}
+            style={[styles.zone, { bottom: bottomAnchor, height: heights.current.bottom }, activeZone === 'bottom' && styles.zoneActive]}
           >
             <Text style={styles.zoneText}>Soltar embaixo</Text>
           </View>
@@ -371,7 +375,7 @@ export function FloatingTimer() {
             styles.panel,
             compact
               ? [styles.panelTop, { top: topAnchor }]
-              : [styles.panelBottom, { paddingBottom: Spacing.lg + insets.bottom }],
+              : [styles.panelBottom, { bottom: bottomAnchor }],
             dragging && styles.panelLifted,
             webOnly,
             animatedStyle,
@@ -399,15 +403,21 @@ export function FloatingTimer() {
             <View style={styles.compactRow}>
               {timeText}
               <View style={styles.spacer} />
-              <OutlineButton label="+15 s" onPress={() => addTime(15)} style={styles.compactBtn} />
+              <OutlineButton label="+30 s" onPress={() => addTime(30)} style={styles.compactBtn} />
               <OutlineButton label={mainLabel} onPress={onMain} style={styles.compactBtn} />
+              <OutlineButton
+                label={finished ? 'Fechar' : 'Pular'}
+                accessibilityLabel={finished ? 'Fechar cronômetro' : 'Pular descanso'}
+                onPress={closeTimer}
+                style={styles.compactBtn}
+              />
               {moveButton}
             </View>
           ) : (
             <>
               <View style={styles.timeBlock}>{timeText}</View>
               <View style={styles.actions}>
-                <OutlineButton label="+15 s" onPress={() => addTime(15)} style={styles.actionBtn} />
+                <OutlineButton label="+30 s" onPress={() => addTime(30)} style={styles.actionBtn} />
                 <OutlineButton label={mainLabel} onPress={onMain} style={styles.actionBtn} />
               </View>
               <View style={styles.presetsRow}>
@@ -428,7 +438,12 @@ export function FloatingTimer() {
                 })}
                 <View style={styles.spacer} />
                 {moveButton}
-                <LinkButton label="Fechar" onPress={closeTimer} />
+                <OutlineButton
+                  label={finished ? 'Fechar' : 'Pular'}
+                  accessibilityLabel={finished ? 'Fechar cronômetro' : 'Pular descanso'}
+                  onPress={closeTimer}
+                  style={styles.compactBtn}
+                />
               </View>
             </>
           )}
