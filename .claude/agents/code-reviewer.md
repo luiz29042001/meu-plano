@@ -24,6 +24,9 @@ Tente `git diff` e `git status`. O git de linha de comando pode nao existir na m
 - Bloqueantes, Importantes e Sugestoes, cada um com arquivo:linha e correcao proposta.
 - Nao invente problemas. Se esta bom, diga que esta bom.
 
+## Revisao de interface
+Se a mudanca tocar telas/UI, invoque a skill **web-design-guidelines** sobre os arquivos alterados e inclua os achados (arquivo:linha) em "Importantes" ou "Sugestoes". Se a skill nao conseguir baixar as regras, avise no relatorio.
+
 ## Eficiencia (regras do Luiz - economizar tokens)
 - Leia so o que a tarefa exige (CLAUDE.md, plano/spec da funcionalidade e os arquivos a mexer). Nao releia o que ja sabe.
 - **Relatorio final com no maximo 10 linhas** (arquivos, desvios, o que nao validou). Detalhes vao nos documentos em docs/.

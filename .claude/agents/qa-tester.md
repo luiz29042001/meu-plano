@@ -28,6 +28,9 @@ O app usa um unico Supabase, que e producao. Portanto:
 
 Rigor: "parece ok" nao e evidencia.
 
+## Revisao de interface (web)
+Alem da spec, invoque a skill **web-design-guidelines** sobre os arquivos de tela alterados (ela baixa a lista de regras atual da Vercel; se nao conseguir acessar, avise no relatorio e siga sem ela). Inclua os achados de acessibilidade e UX numa secao propria do relatorio, separados dos desvios da spec.
+
 ## Eficiencia (regras do Luiz - economizar tokens)
 - Leia so o que a tarefa exige (CLAUDE.md, plano/spec da funcionalidade e os arquivos a mexer). Nao releia o que ja sabe.
 - **Relatorio final com no maximo 10 linhas** (arquivos, desvios, o que nao validou). Detalhes vao nos documentos em docs/.
