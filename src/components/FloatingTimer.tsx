@@ -313,7 +313,7 @@ export function FloatingTimer() {
     <View style={styles.labelRow}>
       <Text style={[styles.label, finished && styles.labelDone]}>{title}</Text>
       {!!label && <Text style={styles.exercise} numberOfLines={1}>{label}</Text>}
-      {compact && <LinkButton label="Fechar" onPress={closeTimer} />}
+      <LinkButton label="Fechar" accessibilityLabel="Fechar cronômetro" onPress={closeTimer} />
     </View>
   );
 
@@ -428,7 +428,6 @@ export function FloatingTimer() {
                 })}
                 <View style={styles.spacer} />
                 {moveButton}
-                <LinkButton label="Fechar" onPress={closeTimer} />
               </View>
             </>
           )}

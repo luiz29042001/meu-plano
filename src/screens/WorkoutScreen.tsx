@@ -306,7 +306,7 @@ export function WorkoutScreen() {
     days, checks, todayCompletion, nextWorkout,
     status, error, retry, saveError, toggleCheck, completeWorkout, notes, saveNote,
   } = useWorkout();
-  const { launchTimer } = useTimerActions();
+  const { launchTimer, closeTimer } = useTimerActions();
   const timerInsets = useTimerInsets();
   const { profile } = useAuth();
   const programName = profile?.program?.name ?? 'Meu treino';
@@ -559,6 +559,7 @@ export function WorkoutScreen() {
                 onToggle={() => {
                   const was = !!checks[current.id];
                   toggleCheck(current.id, was);
+                  if (!was) closeTimer(); // série feita: o descanso só volta quando a pessoa pedir
                   setFocusId(null);
                 }}
                 onLaunchTimer={() => launchTimer(current.name, current.rest_seconds, activeDay?.color ?? '')}
@@ -579,7 +580,7 @@ export function WorkoutScreen() {
                 key={ex.id}
                 exercise={ex}
                 checked={false}
-                onToggle={() => toggleCheck(ex.id, false)}
+                onToggle={() => { toggleCheck(ex.id, false); closeTimer(); }}
                 onFocus={() => setFocusId(ex.id)}
               />
             ))}
