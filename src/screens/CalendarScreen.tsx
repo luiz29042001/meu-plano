@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCalendar } from '../hooks/useCalendar';
+import { useNavigation } from '@react-navigation/native';
 import { useTheme, makeStyles } from '../contexts/ThemeContext';
 import { useTimerInsets } from '../hooks/useTimerInsets';
 import { Font, FontSize, Radius, Spacing, Touch, Tracking, numberLineHeight } from '../utils/theme';
@@ -14,15 +15,19 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { NumbersRow } from '../components/NumbersRow';
 import { ErrorBlock } from '../components/ErrorBlock';
 import { Skeleton } from '../components/Skeleton';
+import { OutlineButton } from '../components/Buttons';
+import { Notice } from '../components/Notice';
+import { useOnline } from '../hooks/useOnline';
 
 const CELL_HEIGHT = 56;
 const BAR_HEIGHT = 4;
+const DONE_MARK = 8;
 
 const useStyles = makeStyles(c => ({
   container: { flex: 1, backgroundColor: c.bg },
   scroll: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.sm },
   monthNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  arrow: { width: Touch.min, height: Touch.min, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.sm },
+  arrow: { width: Touch.min, height: Touch.min, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.sm, borderWidth: 1, borderColor: c.border },
   arrowHover: { backgroundColor: c.cardHover },
   arrowText: { fontFamily: Font.condMedium, fontSize: FontSize.xxl, color: c.text, includeFontPadding: false, lineHeight: FontSize.xxl },
   monthCenter: { alignItems: 'center' },
@@ -50,16 +55,18 @@ const useStyles = makeStyles(c => ({
   },
   dayDone: { color: c.text, fontFamily: Font.condBold },
   dayFuture: { color: c.textFaint },
+  doneMark: { position: 'absolute', top: Spacing.xs, right: Spacing.xs, width: DONE_MARK, height: DONE_MARK, backgroundColor: c.green, borderRadius: Radius.sm },
   dayBar: { position: 'absolute', left: Spacing.sm, right: Spacing.sm, bottom: Spacing.xs, height: BAR_HEIGHT },
   emptyMonth: { marginTop: Spacing.md, fontFamily: Font.body, fontSize: FontSize.base, color: c.textMuted },
+  emptyBtn: { marginTop: Spacing.md },
   legend: { marginTop: Spacing.xxl },
   legendTitle: {
-    fontFamily: Font.condSemi, fontSize: FontSize.xl, color: c.text, textTransform: 'uppercase',
+    fontFamily: Font.condSemi, fontSize: FontSize.lg, color: c.text, textTransform: 'uppercase',
     letterSpacing: Tracking.caps, marginBottom: Spacing.xs, includeFontPadding: false,
   },
   legendRow: { minHeight: Touch.min, flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   legendBar: { width: 16, height: BAR_HEIGHT },
-  legendLabel: { flex: 1, fontFamily: Font.body, fontSize: FontSize.base, color: c.textMuted },
+  legendLabel: { flex: 1, fontFamily: Font.body, fontSize: FontSize.md, color: c.textMuted },
   skelRow: { flexDirection: 'row', gap: Spacing.md },
 }));
 
@@ -70,6 +77,8 @@ export function CalendarScreen() {
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
   const timerInsets = useTimerInsets();
+  const navigation = useNavigation<any>();
+  const online = useOnline();
 
   const { completionByDate, stats, programDays, loading, status, error, retry } = useCalendar(viewYear, viewMonth);
   const legend = buildLegend(programDays);
@@ -105,6 +114,11 @@ export function CalendarScreen() {
         showsVerticalScrollIndicator={false}
       >
         {timerInsets.top > 0 && <View style={{ height: timerInsets.top }} />}
+        {!online && status !== 'error' && (
+          <View style={{ marginBottom: Spacing.md }}>
+            <Notice tone="neutral" text="Sem internet. Histórico do último carregamento." />
+          </View>
+        )}
         {/* Mês */}
         <View style={styles.monthNav}>
           <Pressable
@@ -188,6 +202,7 @@ export function CalendarScreen() {
                     ]}>
                       {day}
                     </Text>
+                    {completion && <View style={styles.doneMark} />}
                     {completion && (
                       <View style={[styles.dayBar, { backgroundColor: dayColor(completion.workout_day?.color) }]} />
                     )}
@@ -196,7 +211,14 @@ export function CalendarScreen() {
               })}
             </View>
             {!isLoading && completedThisMonth === 0 && (
-              <Text style={styles.emptyMonth}>Nenhum treino em {monthName.toLowerCase()}.</Text>
+              <>
+                <Text style={styles.emptyMonth}>Nenhum treino em {monthName.toLowerCase()}.</Text>
+                <OutlineButton
+                  label="Ver o treino de hoje"
+                  onPress={() => navigation.navigate('Workout')}
+                  style={styles.emptyBtn}
+                />
+              </>
             )}
           </>
         )}

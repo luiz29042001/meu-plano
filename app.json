@@ -76,7 +76,6 @@
       "backgroundColor": "#222221"
     },
     "plugins": [
-      "expo-router",
       "expo-font",
       [
         "expo-build-properties",
@@ -90,9 +89,6 @@
       ],
       "@react-native-google-signin/google-signin"
     ],
-    "experiments": {
-      "typedRoutes": true
-    },
     "scheme": "meuplano",
     "extra": {
       "supabaseUrl": "https://SEU_PROJECT_REF.supabase.co",

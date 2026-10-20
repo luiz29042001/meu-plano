@@ -16,6 +16,7 @@ const useStyles = makeStyles(c => ({
     letterSpacing: Tracking.tight, color: c.text, includeFontPadding: false,
     fontVariant: ['tabular-nums'],
   },
+  valueOk: { color: c.green },
   label: {
     marginTop: Spacing.xs, fontFamily: Font.body, fontSize: FontSize.sm, color: c.textMuted,
   },
@@ -23,7 +24,7 @@ const useStyles = makeStyles(c => ({
 
 export function NumbersRow({
   items, valueSize = FontSize.xxxl,
-}: { items: { value: string; label: string }[]; valueSize?: number }) {
+}: { items: { value: string; label: string; ok?: boolean }[]; valueSize?: number }) {
   const styles = useStyles();
   return (
     <View style={styles.row}>
@@ -35,7 +36,7 @@ export function NumbersRow({
           accessibilityLabel={`${it.value} ${it.label}`}
         >
           <Text
-            style={[styles.value, { fontSize: valueSize, lineHeight: numberLineHeight(valueSize) }]}
+            style={[styles.value, it.ok && styles.valueOk, { fontSize: valueSize, lineHeight: numberLineHeight(valueSize) }]}
             numberOfLines={1} maxFontSizeMultiplier={1.2}>{it.value}</Text>
           <Text style={styles.label}>{it.label}</Text>
         </View>

@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meu Plano - Mockup final</title>
+<style>
+/* Valores reais de docs/design/spec-final-2026-10-10.md (secoes 1.1 e 1.2).
+   Fontes reais do app: Barlow Condensed e Inter; aqui entram as de reserva do sistema. */
+:root{
+  --cond:"Barlow Condensed","DIN Condensed","Bahnschrift Condensed","Roboto Condensed","Arial Narrow",sans-serif-condensed,sans-serif;
+  --body:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+}
+:root[data-theme="light"]{
+  --bg:#F1F1EF;--bgElevated:#F7F7F5;--card:#FAFAF9;--cardHover:#E9E9E6;--cardAlt:#ECECE9;--surface:#E4E4E1;
+  --border:#C8C8C3;--borderStrong:#262626;--text:#262626;--textMuted:#4D4D4B;--textFaint:#646461;
+  --primary:#262626;--onPrimary:#F1F1EF;--green:#137036;--greenDim:#0F5E2D;--onGreen:#F1F1EF;
+  --push:#9F4B2C;--pull:#34679E;--legs:#297144;--rest:#646461;--red:#B03944;
+  --page:#DCDCD8;--pageText:#262626;
+}
+:root[data-theme="dark"]{
+  --bg:#222221;--bgElevated:#272726;--card:#2A2A29;--cardHover:#323231;--cardAlt:#262625;--surface:#363634;
+  --border:#3E3E3B;--borderStrong:#E9E7E3;--text:#E9E7E3;--textMuted:#B5B3AE;--textFaint:#A3A19C;
+  --primary:#1DB954;--onPrimary:#222221;--green:#1DB954;--greenDim:#1AA34A;--onGreen:#222221;
+  --push:#E4886A;--pull:#73A3DA;--legs:#42B968;--rest:#A2A09C;--red:#EA8188;
+  --page:#141413;--pageText:#E9E7E3;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--page);color:var(--pageText);font-family:var(--body)}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;text-align:inherit}
+button:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+.top{max-width:1320px;margin:0 auto;padding:20px 16px 8px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.top h1{font:600 24px var(--cond);text-transform:uppercase;letter-spacing:.5px}
+.top p{font-size:14px;max-width:640px;opacity:.85;line-height:1.45}
+.toggle{display:flex;border:1px solid var(--borderStrong)}
+.toggle button{min-height:44px;padding:0 20px;font:600 18px var(--cond);text-transform:uppercase;letter-spacing:.5px}
+.toggle button[aria-pressed="true"]{background:var(--text);color:var(--bg)}
+.stage{max-width:1320px;margin:0 auto;padding:16px;display:flex;flex-wrap:wrap;gap:32px;justify-content:center;align-items:flex-start}
+.col{width:390px;max-width:100%}
+.cap{font:600 18px var(--cond);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.sw{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}
+.sw button{min-height:44px;padding:0 12px;border:1px solid var(--border);font-size:13px;font-weight:600}
+.sw button[aria-pressed="true"]{border-color:var(--pageText);background:var(--pageText);color:var(--page)}
+
+/* ===== Phone ===== */
+.phone{width:390px;max-width:100%;height:844px;background:var(--bg);color:var(--text);font-family:var(--body);position:relative;display:flex;flex-direction:column;overflow:hidden;border-radius:30px;outline:1px solid var(--border)}
+.status{height:44px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 24px 6px;font-size:13px;color:var(--textMuted)}
+.scroll{flex:1;overflow:auto;padding:0 20px 24px;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+.hdr{height:56px;flex:none;display:flex;align-items:center;padding:0 20px}
+.hdr .t{flex:1}
+.hdr small{display:block;font-size:13px;color:var(--textMuted);line-height:14px}
+.hdr b{font:600 24px/26px var(--cond);text-transform:uppercase;letter-spacing:.5px}
+.brand{font:700 24px var(--cond);text-transform:uppercase;letter-spacing:.5px}
+.avatar{width:44px;height:44px;border:1px solid var(--border);display:grid;place-items:center;font:600 20px var(--cond);border-radius:2px}
+.hello{margin-top:4px;font-size:16px;color:var(--textMuted);line-height:22px}
+.tabs{flex:none;height:48px;border-bottom:1px solid var(--border);display:flex;overflow:auto;padding:0 8px;scrollbar-width:none}
+.tab{position:relative;flex:none;height:48px;padding:0 16px;display:flex;align-items:center;gap:8px;font:600 18px var(--cond);text-transform:uppercase;letter-spacing:.5px;color:var(--textMuted);white-space:nowrap}
+.tab.on{color:var(--text)}
+.tab.on:after{content:"";position:absolute;left:8px;right:8px;bottom:0;height:3px;background:var(--c)}
+.tab .nd{width:6px;height:6px;border-radius:50%;background:var(--c)}
+
+.hl{display:flex;gap:16px}
+.hl .st{width:6px;align-self:stretch;background:var(--c)}
+.hl .bd{flex:1;min-width:0}
+.kick{display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:14px;color:var(--textMuted)}
+.tag{background:var(--text);color:var(--bg);padding:2px 8px;font:600 13px/18px var(--body)}
+.hl .row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.hl h2{font:600 64px/59px var(--cond);text-transform:uppercase;letter-spacing:-1.5px;white-space:nowrap}
+.hl h2.hero{font-size:72px;line-height:66px}
+.hl .mu{margin-top:4px;font-size:16px;color:var(--textMuted)}
+.cnt{text-align:right}
+.cnt b{display:block;font:700 40px/37px var(--cond);letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+.cnt b.ok{color:var(--green)}
+.cnt span{font-size:13px;color:var(--textMuted)}
+.bar{height:4px;background:var(--surface);border-radius:500px;margin-top:16px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--c);border-radius:500px;transition:width .15s ease-out}
+.bar i.ok{background:var(--green)}
+
+.nums{display:flex;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.nums>div{flex:1;padding:16px 12px}
+.nums>div+div{border-left:1px solid var(--border)}
+.nums b{display:block;font:700 40px/37px var(--cond);letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+.nums b.ok{color:var(--green)}
+.nums span{display:block;margin-top:4px;font-size:13px;color:var(--textMuted)}
+
+.btn{min-height:56px;width:100%;display:flex;align-items:center;justify-content:center;gap:12px;padding:0 20px;background:var(--primary);color:var(--onPrimary);font:600 20px var(--cond);text-transform:uppercase;letter-spacing:.5px;border-radius:2px;transition:opacity .08s}
+.btn:active{opacity:.85}
+.btn.done{background:var(--green);color:var(--onGreen)}
+.btn.done:active{background:var(--greenDim);opacity:1}
+.btn[disabled]{background:var(--surface);color:var(--textFaint);cursor:default}
+.ob{min-height:48px;flex:1 1 104px;display:flex;align-items:center;justify-content:center;padding:0 16px;border:1px solid var(--borderStrong);border-radius:2px;font:600 18px var(--cond);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+.ob:active,.rowbtn:active{background:var(--cardHover)}
+.ob[disabled]{border-color:var(--border);color:var(--textFaint);cursor:default}
+.note{margin-top:12px;font-size:14px;color:var(--textMuted)}
+
+.list{margin-top:20px;border-top:1px solid var(--border)}
+.rowbtn{width:100%;min-height:56px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border)}
+.rowbtn .l{flex:1;min-width:0}
+.rowbtn .l b{display:block;font-weight:500;font-size:16px}
+.rowbtn .l small{display:block;font-size:13px;color:var(--textMuted);margin-top:1px}
+.chev{font:500 24px var(--cond);color:var(--textMuted);width:28px;text-align:center}
+.sets{font:600 24px var(--cond);font-variant-numeric:tabular-nums}
+.chk{width:56px;height:56px;display:grid;place-items:center;flex:none}
+.chk i{width:32px;height:32px;border:2px solid var(--borderStrong);border-radius:2px;display:grid;place-items:center;font:600 16px var(--body);font-style:normal}
+.chk i.on{background:var(--green);border-color:var(--green);color:var(--onGreen)}
+.doneRow b{font:600 24px var(--cond)!important}
+.doneRow small{color:var(--textFaint)!important}
+
+.cur{padding:20px 0;border-bottom:1px solid var(--border)}
+.cur .pos{font-size:14px;color:var(--textMuted)}
+.cur .nm{font-weight:600;font-size:18px;line-height:26px;margin-top:4px}
+.big{font:700 64px/59px var(--cond);letter-spacing:-1.5px;margin-top:8px;font-variant-numeric:tabular-nums}
+.bigl{font-size:13px;color:var(--textMuted);margin-top:4px}
+.dots{display:flex;gap:4px;margin-top:16px}
+.dots i{flex:1;height:8px;border-radius:500px;border:1.5px solid var(--textFaint);transition:background .15s ease-out}
+.dots i.on{background:var(--c);border-color:var(--c)}
+.dots.ok i{background:var(--green);border-color:var(--green)}
+.setrow{display:flex;justify-content:space-between;align-items:baseline;margin-top:8px}
+.setrow b{font:600 24px var(--cond)}
+.setrow span{font-size:14px;color:var(--textMuted)}
+.last{margin-top:16px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.last .rowbtn{border-bottom:0}
+.last small{font-size:13px;color:var(--textMuted)}
+.last b{display:block;font-weight:600;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.fin{margin-top:24px}
+
+.dock{flex:none;height:72px;padding:8px 20px;background:var(--bg);border-top:1px solid var(--border)}
+.nav{flex:none;height:56px;display:flex;background:var(--bg);border-top:1px solid var(--border)}
+.nav button{flex:1;position:relative;font:600 18px var(--cond);text-transform:uppercase;letter-spacing:.5px;color:var(--textMuted);text-align:center}
+.nav button:active{background:var(--cardHover)}
+.nav button.on{color:var(--text)}
+.nav button.on:before{content:"";position:absolute;left:0;right:0;top:-1px;height:3px;background:var(--text)}
+.safe{flex:none;height:20px;background:var(--bg)}
+
+.timer{flex:none;background:var(--bgElevated);border-bottom:1px solid var(--border);padding:12px 20px 14px;position:relative}
+.timer .lab{display:flex;gap:8px;font-size:14px;color:var(--textMuted)}
+.timer .lab b{color:var(--text);font-weight:500}
+.timer .tm{display:flex;align-items:center;justify-content:space-between;margin-top:2px}
+.timer .tm span{font:700 40px/37px var(--cond);font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+.timer .tm div{display:flex;gap:8px}
+.timer .tm .ob{flex:none;min-height:48px;padding:0 14px}
+.timer .pg{position:absolute;left:0;bottom:0;height:3px;background:var(--c);width:100%}
+
+.notice{display:flex;align-items:center;gap:12px;min-height:44px;margin-top:16px;padding:8px 16px;background:var(--surface);border-left:3px solid var(--red);font-size:14px}
+
+.seg{display:flex;border:1px solid var(--borderStrong);border-radius:2px}
+.seg button{flex:1;min-height:48px;text-align:center;font:600 18px var(--cond);text-transform:uppercase;letter-spacing:.5px;color:var(--textMuted)}
+.seg button.on{background:var(--text);color:var(--bg)}
+.wk{display:flex;margin-top:8px}
+.wk div{flex:1;text-align:center;font-size:13px;color:var(--textMuted)}
+.wk i{display:block;width:12px;height:12px;margin:6px auto 0;border:1px solid var(--textFaint);border-radius:2px}
+.wk i.f{border-color:var(--border)}
+.wk i.d{background:var(--green);border-color:var(--green)}
+.wk i.t{border:2px solid var(--borderStrong)}
+.wk i.t.d{border-color:var(--green)}
+.sec{margin-top:32px}
+.sec .k{font-size:13px;color:var(--textMuted)}
+
+/* Dieta */
+.hero{margin-top:20px}
+.hero h3{font:600 32px/30px var(--cond);text-transform:uppercase;letter-spacing:-.5px;margin-top:8px}
+.hero .tr{display:flex;align-items:flex-end;gap:16px;margin-top:8px}
+.hero .tr b{font:700 40px/37px var(--cond);font-variant-numeric:tabular-nums}
+.hero .tr span{font:600 28px/28px var(--cond);color:var(--textMuted)}
+.hero .mac{font-size:14px;color:var(--textMuted);margin-top:8px}
+.item{padding:12px 0;border-top:1px solid var(--border)}
+.item .tp{display:flex;justify-content:space-between;gap:12px}
+.item b{font-weight:500;font-size:16px}
+.item small{display:block;font-size:14px;color:var(--textMuted);margin-top:2px}
+.item em{font:600 18px var(--cond);font-style:normal}
+.mrow{width:100%;min-height:56px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border)}
+.mrow .s{width:3px;align-self:stretch;background:var(--c)}
+.mrow .tm{width:48px;font:500 18px var(--cond);color:var(--textMuted)}
+.mrow .nm{flex:1;min-width:0}
+.mrow .nm b{display:block;font-weight:500;font-size:16px}
+.mrow .nm.past b{color:var(--textMuted)}
+.mrow .nm small{font-size:13px;color:var(--textMuted)}
+.mrow .kc{font:600 18px var(--cond)}
+.tot{margin-top:20px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.tot .rowbtn{border-bottom:0}
+.tot small{font-size:13px;color:var(--textMuted)}
+.tot b{display:block;font:600 18px var(--cond);letter-spacing:.2px}
+.foot{padding:20px 0 0;font-size:13px;color:var(--textFaint);line-height:18px}
+.empty{margin-top:32px}
+.empty p{margin:12px 0 16px;font-size:16px;line-height:22px;color:var(--textMuted)}
+.hide{display:none!important}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="top">
+  <div>
+    <h1>Meu Plano - mockup final</h1>
+    <p>Tres telas a 390px, nos dois temas. Toque em <b>Série feita</b> para ver os pontos, o cronômetro no topo e o fechamento do treino. Fontes de reserva do sistema no lugar de Barlow Condensed e Inter. Dados fictícios. Valores de cor = spec-final secoes 1.1 e 1.2.</p>
+  </div>
+  <div class="toggle" role="group" aria-label="Tema">
+    <button type="button" data-set="light" aria-pressed="false">Claro</button>
+    <button type="button" data-set="dark" aria-pressed="true">Escuro</button>
+  </div>
+</div>
+
+<div class="stage">
+
+<!-- ================= TREINO ================= -->
+<div class="col">
+  <div class="cap">Treino</div>
+  <div class="sw" id="wsw">
+    <button type="button" data-w="run" aria-pressed="true">Em série</button>
+    <button type="button" data-w="ready" aria-pressed="false">Tudo feito</button>
+    <button type="button" data-w="skip" aria-pressed="false">Concluir sem tudo</button>
+    <button type="button" data-w="doneday" aria-pressed="false">Concluído</button>
+    <button type="button" data-w="err" aria-pressed="false">Erro / offline</button>
+  </div>
+  <div class="phone" id="wk" style="--c:var(--push)">
+    <div class="status"><span>6:02</span><span>5G  82%</span></div>
+    <div class="hdr"><div class="t"><small>Push, Pull e Legs - 6x</small><b>Treino</b></div></div>
+    <div class="tabs">
+      <button class="tab on" style="--c:var(--push)">Push A</button>
+      <button class="tab" style="--c:var(--pull)">Pull A<span class="nd" style="--c:var(--pull)"></span></button>
+      <button class="tab" style="--c:var(--legs)">Legs A</button>
+      <button class="tab" style="--c:var(--push)">Push B</button>
+      <button class="tab" style="--c:var(--pull)">Pull B</button>
+    </div>
+    <div class="timer hide" id="timer" style="--c:var(--push)">
+      <div class="lab"><b id="tlab">Descanso</b><span>Supino inclinado</span></div>
+      <div class="tm"><span id="tval">01:30</span><div><button class="ob" type="button" id="tadd">+30 s</button><button class="ob" type="button" id="tskip">Pular</button></div></div>
+      <i class="pg" id="tpg"></i>
+    </div>
+    <div class="scroll" id="wscroll">
+      <div style="margin-top:20px" class="hl" >
+        <div class="st"></div>
+        <div class="bd">
+          <div class="kick" id="wtagrow"></div>
+          <div class="row"><h2>Push A</h2>
+            <div class="cnt"><b id="wcnt">1/6</b><span>exercícios</span></div></div>
+          <div class="mu">Peito, ombros e tríceps</div>
+        </div>
+      </div>
+      <div class="bar"><i id="wbar" style="width:16.6%"></i></div>
+
+      <div class="notice hide" id="wnotice" role="alert"><span id="wnoticetxt"></span></div>
+
+      <div class="list" id="wlist">
+        <button class="rowbtn doneRow" id="wdonegrp" type="button" aria-expanded="false">
+          <span class="chk"><i class="on">✓</i></span>
+          <span class="l"><b>1 feito</b><small>Supino reto com barra</small></span>
+          <span class="chev">+</span>
+        </button>
+
+        <div class="cur" id="wcur">
+          <div class="pos">Exercício 2 de 6</div>
+          <div class="nm">Supino inclinado com halteres</div>
+          <div class="big">3 × 10–12</div>
+          <div class="bigl">séries × repetições</div>
+          <div class="dots" id="wdots"><i></i><i></i><i></i></div>
+          <div class="setrow"><b id="wsetlab">Série 1 de 3</b><span>Descanso 90 s</span></div>
+          <div class="last"><button class="rowbtn" type="button">
+            <span class="l"><small>Última vez</small><b>24 kg por lado · subir 2 kg</b></span><span class="chev">›</span></button></div>
+          <div class="acts">
+            <button class="ob" type="button">Anotar</button>
+            <button class="ob" type="button">Como fazer</button>
+            <button class="ob" type="button" id="wundo" hidden>Desfazer série</button>
+          </div>
+        </div>
+
+        <button class="rowbtn nx" type="button" id="wn1"><span class="l"><b>Desenvolvimento com halteres</b></span><span class="sets">3 × 10</span><span class="chk"><i></i></span></button>
+        <button class="rowbtn nx" type="button"><span class="l"><b>Elevação lateral</b></span><span class="sets">4 × 12–15</span><span class="chk"><i></i></span></button>
+        <button class="rowbtn nx" type="button"><span class="l"><b>Tríceps testa</b></span><span class="sets">3 × 10–12</span><span class="chk"><i></i></span></button>
+        <button class="rowbtn nx" type="button"><span class="l"><b>Tríceps na corda</b></span><span class="sets">3 × 12–15</span><span class="chk"><i></i></span></button>
+      </div>
+
+      <div class="fin" id="wfin">
+        <button class="ob" type="button" id="wfinbtn" style="width:100%">Concluir treino (1/6)</button>
+      </div>
+      <div class="hide" id="wsummary" style="margin-top:24px">
+        <div style="font:600 40px/37px var(--cond);text-transform:uppercase;letter-spacing:-.5px">Treino registrado</div>
+        <div class="nums" style="margin-top:16px"><div><b>6</b><span>exercícios feitos</span></div><div><b>18</b><span>séries</span></div><div><b>57</b><span>minutos</span></div></div>
+      </div>
+      <p class="note hide" id="wdonemsg" style="font-weight:600;font-size:16px;color:var(--text)">Treino de hoje concluído.</p>
+    </div>
+    <div class="dock" id="wdock"><button class="btn done" type="button" id="wbtn">Série feita</button></div>
+    <div class="nav"><button>Início</button><button class="on" aria-current="page">Treino</button><button>Dieta</button></div>
+    <div class="safe"></div>
+  </div>
+</div>
+
+<!-- ================= INICIO ================= -->
+<div class="col">
+  <div class="cap">Início</div>
+  <div class="sw" id="hsw">
+    <button type="button" data-h="ok" aria-pressed="true">Normal</button>
+    <button type="button" data-h="empty" aria-pressed="false">Sem programa</button>
+  </div>
+  <div class="phone">
+    <div class="status"><span>6:02</span><span>5G  82%</span></div>
+    <div class="scroll">
+      <div style="display:flex;align-items:center;justify-content:space-between;min-height:44px;margin-top:8px">
+        <span class="brand">Meu Plano</span><button class="avatar" aria-label="Abrir perfil e ajustes">L</button>
+      </div>
+      <div class="hello">Bom dia, Luiz. Sábado, 10 de outubro.</div>
+
+      <div id="hok">
+        <div class="hl" style="--c:var(--pull);margin-top:32px">
+          <div class="st"></div>
+          <div class="bd">
+            <div class="kick">Próximo treino</div>
+            <div class="row"><h2 class="hero">Pull A</h2></div>
+            <div class="mu">Costas, bíceps e posterior de ombro</div>
+          </div>
+        </div>
+        <div style="margin-top:20px" class="nums"><div><b>6</b><span>exercícios</span></div><div><b>22</b><span>séries</span></div><div><b>58</b><span>minutos, aprox.</span></div></div>
+        <div style="margin-top:20px"><button class="btn" type="button">Começar treino</button></div>
+        <div class="note">Último treino: Push A.</div>
+
+        <div class="sec">
+          <div class="k">Esta semana</div>
+          <div class="wk">
+            <div>S<i class="d"></i></div><div>T<i class="d"></i></div><div>Q<i class="f"></i></div><div>Q<i class="d"></i></div><div>S<i class="d t"></i></div><div>S<i class="f"></i></div><div>D<i class="f"></i></div>
+          </div>
+          <div class="nums" style="margin-top:16px"><div><b>4/6</b><span>treinos na semana</span></div></div>
+        </div>
+
+        <div class="list" style="margin-top:32px">
+          <button class="rowbtn" type="button"><span class="l"><b>Calendário</b></span><span style="font-size:14px;color:var(--textMuted)">Histórico de treinos</span><span class="chev">›</span></button>
+          <button class="rowbtn" type="button"><span class="l"><b>Perfil</b></span><span style="font-size:14px;color:var(--textMuted)">Aparência, avisos e conta</span><span class="chev">›</span></button>
+        </div>
+      </div>
+
+      <div id="hempty" class="empty hide">
+        <div class="hl" style="--c:var(--rest)"><div class="st"></div><div class="bd"><div class="row"><h2 class="hero" style="font-size:56px;line-height:52px">Sem programa</h2></div></div></div>
+        <p>Você ainda não tem um programa de treino.</p>
+        <button class="ob" type="button" style="width:100%">Atualizar</button>
+        <div class="list" style="margin-top:32px">
+          <button class="rowbtn" type="button"><span class="l"><b>Calendário</b></span><span style="font-size:14px;color:var(--textMuted)">Histórico de treinos</span><span class="chev">›</span></button>
+          <button class="rowbtn" type="button"><span class="l"><b>Perfil</b></span><span style="font-size:14px;color:var(--textMuted)">Aparência, avisos e conta</span><span class="chev">›</span></button>
+        </div>
+      </div>
+    </div>
+    <div class="nav"><button class="on" aria-current="page">Início</button><button>Treino</button><button>Dieta</button></div>
+    <div class="safe"></div>
+  </div>
+</div>
+
+<!-- ================= DIETA ================= -->
+<div class="col">
+  <div class="cap">Dieta</div>
+  <div class="sw" id="dsw">
+    <button type="button" data-d="ok" aria-pressed="true">Normal</button>
+    <button type="button" data-d="pending" aria-pressed="false">Em preparação</button>
+  </div>
+  <div class="phone">
+    <div class="status"><span>12:08</span><span>5G  82%</span></div>
+    <div class="hdr"><div class="t"><small>Déficit calórico</small><b>Dieta</b></div></div>
+    <div class="scroll">
+      <div id="dok">
+        <div class="seg" role="radiogroup" aria-label="Variante da dieta"><button class="on" role="radio" aria-checked="true">Variante A</button><button role="radio" aria-checked="false">Variante B</button></div>
+        <div class="note" style="margin-top:12px">Dieta A — Com feijão ou lentilha no almoço</div>
+
+        <div class="hero">
+          <div class="kick"><span class="tag">Próxima</span><span>daqui a 22 min</span></div>
+          <h3>Almoço</h3>
+          <div class="tr"><b>12:30</b><span>640 kcal</span></div>
+          <div class="mac">P 48g · C 72g · G 14g</div>
+          <div style="margin-top:12px">
+            <div class="item"><div class="tp"><div><b>Arroz integral</b><small>150 g cozido</small></div><em>210 kcal</em></div><div class="acts" style="margin-top:12px"><button class="ob" type="button">Substitutos</button></div></div>
+            <div class="item"><div class="tp"><div><b>Peito de frango grelhado</b><small>180 g</small></div><em>297 kcal</em></div><div class="acts" style="margin-top:12px"><button class="ob" type="button">Substitutos</button><button class="ob" type="button">Dica</button></div></div>
+            <div class="item" style="border-bottom:1px solid var(--border)"><div class="tp"><div><b>Feijão</b><small>1 concha</small></div><em>133 kcal</em></div></div>
+          </div>
+        </div>
+
+        <div class="sec" style="margin-top:24px"><div class="k">Todas as refeições</div></div>
+        <div class="list" style="margin-top:8px">
+          <button class="mrow" type="button" style="--c:var(--legs)"><i class="s"></i><span class="tm">07:00</span><span class="nm past"><b>Café da manhã</b><small>P 32g · C 54g · G 12g</small></span><span class="kc">520 kcal</span><span class="chev">+</span></button>
+          <button class="mrow" type="button" style="--c:var(--pull)"><i class="s"></i><span class="tm">10:00</span><span class="nm past"><b>Lanche da manhã</b><small>P 24g · C 30g · G 6g</small></span><span class="kc">290 kcal</span><span class="chev">+</span></button>
+          <button class="mrow" type="button" style="--c:var(--push)"><i class="s"></i><span class="tm">16:00</span><span class="nm"><b>Lanche da tarde</b><small>P 28g · C 38g · G 9g</small></span><span class="kc">330 kcal</span><span class="chev">+</span></button>
+          <button class="mrow" type="button" style="--c:var(--legs)"><i class="s"></i><span class="tm">20:00</span><span class="nm"><b>Jantar</b><small>P 44g · C 40g · G 12g</small></span><span class="kc">440 kcal</span><span class="chev">+</span></button>
+        </div>
+
+        <div class="tot"><button class="rowbtn" type="button"><span class="l"><small>Total do dia</small><b>1.980 kcal · P 150g · C 190g · G 50g</b></span><span class="chev">+</span></button></div>
+        <div class="foot">Mínimo 3,5L de água por dia. Em dias de treino, adicione 500ml por hora de exercício.</div>
+      </div>
+
+      <div id="dpend" class="empty hide">
+        <div class="hl" style="--c:var(--rest)"><div class="st"></div><div class="bd"><div class="row"><h2 class="hero" style="font-size:56px;line-height:52px">Em preparação</h2></div></div></div>
+        <p>Sua dieta ainda está sendo preparada pela nutricionista.</p>
+        <button class="ob" type="button" style="width:100%">Atualizar</button>
+      </div>
+    </div>
+    <div class="nav"><button>Início</button><button>Treino</button><button class="on" aria-current="page">Dieta</button></div>
+    <div class="safe"></div>
+  </div>
+</div>
+
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement;
+  function setTheme(t){
+    root.setAttribute('data-theme',t);
+    document.querySelectorAll('[data-set]').forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.set===t))});
+    try{localStorage.setItem('mock-theme',t)}catch(e){}
+  }
+  var saved=null;try{saved=localStorage.getItem('mock-theme')}catch(e){}
+  setTheme(saved||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'));
+  document.querySelectorAll('[data-set]').forEach(function(b){b.addEventListener('click',function(){setTheme(b.dataset.set)})});
+
+  function pick(groupId,attr,cb){
+    var g=document.getElementById(groupId);
+    g.addEventListener('click',function(e){
+      var b=e.target.closest('button');if(!b)return;
+      g.querySelectorAll('button').forEach(function(x){x.setAttribute('aria-pressed','false')});
+      b.setAttribute('aria-pressed','true');cb(b.dataset[attr]);
+    });
+  }
+  pick('hsw','h',function(v){document.getElementById('hok').classList.toggle('hide',v!=='ok');document.getElementById('hempty').classList.toggle('hide',v==='ok')});
+  pick('dsw','d',function(v){document.getElementById('dok').classList.toggle('hide',v!=='ok');document.getElementById('dpend').classList.toggle('hide',v==='ok')});
+
+  /* ---- Treino ---- */
+  var N=3,sets=1,total=90,left=0,iv=null;
+  var $=function(id){return document.getElementById(id)};
+  var dots=$('wdots');
+  function fmt(s){return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+  function drawDots(){
+    dots.innerHTML='';
+    for(var i=0;i<N;i++){var d=document.createElement('i');if(i<sets)d.className='on';dots.appendChild(d)}
+    $('wsetlab').textContent=sets>=N?'Série '+N+' de '+N:(sets===N-1?'Última série':'Série '+(sets+1)+' de '+N);
+    if(sets===N-1)$('wsetlab').textContent='Última série';
+    $('wundo').hidden=sets===0;
+  }
+  function stopTimer(){clearInterval(iv);iv=null;$('timer').classList.add('hide')}
+  function startTimer(){
+    stopTimer();left=total;$('timer').classList.remove('hide');$('tlab').textContent='Descanso';
+    $('tval').textContent=fmt(left);$('tpg').style.width='100%';
+    iv=setInterval(function(){
+      left--;$('tval').textContent=fmt(Math.max(left,0));$('tpg').style.width=(Math.max(left,0)/total*100)+'%';
+      if(left<=0){clearInterval(iv);$('tlab').textContent='Descanso terminado'}
+    },1000);
+  }
+  function setCount(done,cls){
+    $('wcnt').textContent=done+'/6';$('wcnt').className=done===6?'ok':'';
+    $('wbar').style.width=(done/6*100)+'%';$('wbar').className=done===6?'ok':'';
+    $('wfinbtn').textContent='Concluir treino ('+done+'/6)';
+  }
+  $('wbtn').addEventListener('click',function(){
+    if($('wbtn').dataset.mode==='finish'){state('doneday',true);return}
+    if(sets<N){sets++;drawDots();if(sets<N||true){startTimer()}}
+    if(sets>=N){$('wsetlab').textContent='Exercício feito';dots.className='dots ok';[].forEach.call(dots.children,function(d){d.className='on'})}
+  });
+  $('wundo').addEventListener('click',function(){if(sets>0){sets--;dots.className='dots';drawDots();stopTimer()}});
+  $('tadd').addEventListener('click',function(){left+=30;total+=30});
+  $('tskip').addEventListener('click',stopTimer);
+  $('wdonegrp').addEventListener('click',function(){var b=$('wdonegrp');var o=b.getAttribute('aria-expanded')==='true';b.setAttribute('aria-expanded',String(!o));b.querySelector('.chev').textContent=o?'+':'−'});
+
+  var btn=$('wbtn');function nx(h){document.querySelectorAll('.nx').forEach(function(e){e.classList.toggle('hide',h)})}
+  function state(s,anim){
+    stopTimer();sets=1;dots.className='dots';drawDots();
+    ['wnotice','wsummary','wdonemsg'].forEach(function(i){$(i).classList.add('hide')});
+    $('wcur').classList.remove('hide');nx(false);$('wfin').classList.remove('hide');
+    $('wdock').classList.remove('hide');btn.dataset.mode='';btn.className='btn done';btn.textContent='Série feita';btn.disabled=false;
+    $('wtagrow').innerHTML='';setCount(1);
+    $('wsw'+'').querySelectorAll('button').forEach(function(x){x.setAttribute('aria-pressed',String(x.dataset.w===s))});
+    if(s==='ready'){
+      $('wcur').classList.add('hide');nx(true);setCount(6);
+      document.querySelector('#wdonegrp b').textContent='6 feitos';
+      document.querySelector('#wdonegrp small').textContent='Supino reto, Supino inclinado, Desenvolvimento…';
+      $('wfin').classList.add('hide');btn.className='btn';btn.dataset.mode='finish';btn.textContent='Marcar como concluído';
+    } else if(s==='skip'){
+      setCount(3);document.querySelector('#wdonegrp b').textContent='3 feitos';
+      $('wnotice').classList.remove('hide');$('wnoticetxt').textContent='Faltam 3 exercícios. Registrar o treino mesmo assim? (confirmação: Concluir / Cancelar)';
+      $('wnotice').style.borderLeftColor='var(--textFaint)';
+    } else if(s==='doneday'){
+      $('wcur').classList.add('hide');nx(true);setCount(6);
+      document.querySelector('#wdonegrp b').textContent='6 feitos';
+      $('wfin').classList.add('hide');$('wdock').classList.add('hide');
+      $('wtagrow').innerHTML='<span class="tag">Feito hoje</span>';
+      $('wsummary').classList.remove('hide');$('wdonemsg').classList.remove('hide');
+    } else if(s==='err'){
+      $('wnotice').classList.remove('hide');$('wnotice').style.borderLeftColor='var(--red)';
+      $('wnoticetxt').textContent='Não foi possível salvar a marcação. Confira a internet.';
+    } else {
+      document.querySelector('#wdonegrp b').textContent='1 feito';
+      document.querySelector('#wdonegrp small').textContent='Supino reto com barra';
+    }
+  }
+  pick('wsw','w',function(v){state(v)});
+  drawDots();
+})();
+</script>
+</body>
+</html>

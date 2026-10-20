@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { AppState } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -11,9 +12,12 @@ import {
   fetchUserStats,
   fetchExerciseNotes,
   saveExerciseNote,
+  fetchRecentCompletionDates,
 } from '../services/workout';
 import { getNextWorkoutDay } from '../utils/workoutSequence';
 import { todayISO } from '../utils/date';
+import { weekCount, weekDates, weeksAgoISO } from '../utils/weekStats';
+import { reportNetworkError, reportNetworkOk } from '../utils/networkStatus';
 import { friendlyError, isTimeoutError, withTimeout, MSG_NETWORK, isNetworkError } from '../utils/errors';
 import type { WorkoutDay, ExerciseCheck, WorkoutCompletion, UserStats, WorkoutStatus } from '../types';
 
@@ -42,15 +46,23 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
   const [todayCompletion, setTodayCompletion] = useState<WorkoutCompletion | null>(null);
   const [lastCompletion, setLastCompletion] = useState<WorkoutCompletion | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
+  const [recentDates, setRecentDates] = useState<string[]>([]);
   const [notes, setNotes] = useState<Record<number, string>>({});
   const [hasLoaded, setHasLoaded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [checkError, setCheckError] = useState<string | null>(null);
 
   const loadReq = useRef(0);   // descarta respostas de cargas antigas
   const notesReq = useRef(0);  // descarta anotações antigas que chegam depois de um saveNote
 
+  // Re-renderiza ao voltar para o app: se virou o dia, `today` muda e os dados recarregam.
+  const [, setDayTick] = useState(0);
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', s => { if (s === 'active') setDayTick(n => n + 1); });
+    return () => sub.remove();
+  }, []);
   const today = todayISO();
 
   const load = useCallback(async () => {
@@ -67,6 +79,7 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
         fetchUserStats(userId),
       ]);
       if (req !== loadReq.current) return;
+      reportNetworkOk();
       setDays(workoutDays);
       const checkMap: Record<number, boolean> = {};
       exerciseChecks.forEach((c: ExerciseCheck) => { checkMap[c.exercise_id] = c.checked; });
@@ -75,6 +88,10 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
       setLastCompletion(last);
       setStats(userStats);
       setHasLoaded(true);
+      // Datas recentes à parte (semana na Home): falha aqui não derruba a tela.
+      fetchRecentCompletionDates(userId, weeksAgoISO(12))
+        .then(d => { if (req === loadReq.current) setRecentDates(d); })
+        .catch(() => {});
       // Anotações à parte: uma falha aqui nunca impede o treino de abrir
       const nReq = ++notesReq.current;
       fetchExerciseNotes(userId)
@@ -82,6 +99,7 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
         .catch(() => {});
     } catch (e) {
       if (req !== loadReq.current) return;
+      if (isNetworkError(e)) reportNetworkError();
       setError(friendlyError(e, 'Não foi possível carregar seus treinos.'));
     } finally {
       if (req === loadReq.current) setRefreshing(false);
@@ -103,11 +121,15 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
   const toggleCheck = useCallback(async (exerciseId: number, currentValue: boolean) => {
     if (!userId) return;
     const newValue = !currentValue;
+    setCheckError(null);
     setChecks(prev => ({ ...prev, [exerciseId]: newValue }));
     try {
       await upsertExerciseCheck(userId, exerciseId, today, newValue);
-    } catch {
+      reportNetworkOk();
+    } catch (e) {
+      if (isNetworkError(e)) reportNetworkError();
       setChecks(prev => ({ ...prev, [exerciseId]: currentValue }));
+      setCheckError('Não foi possível salvar a marcação. Confira a internet.');
     }
   }, [userId, today]);
 
@@ -120,18 +142,21 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
     setSaveError(null);
     try {
       const completion = await withTimeout(markWorkoutComplete(userId, workoutDayId, today), SAVE_TIMEOUT_MS);
+      reportNetworkOk();
       setTodayCompletion(completion);
+      setRecentDates(prev => (prev.includes(today) ? prev : [...prev, today]));
       // Atualizações secundárias não bloqueiam a confirmação
       fetchLastCompletion(userId).then(setLastCompletion).catch(() => {});
       fetchUserStats(userId).then(setStats).catch(() => {});
       return true;
     } catch (e) {
+      if (isNetworkError(e)) reportNetworkError();
       setSaveError(
         isTimeoutError(e)
           ? 'A conexão demorou. O treino pode já ter sido salvo; tocar de novo é seguro.'
           : isNetworkError(e)
             ? MSG_NETWORK
-            : 'Não foi possível salvar. Tente de novo.'
+            : 'Não foi possível registrar o treino. Tente de novo.'
       );
       return false;
     }
@@ -159,6 +184,12 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
   const lastSlug = lastCompletion?.workout_day?.slug ?? null;
   const nextWorkout = getNextWorkoutDay(days, lastSlug);
 
+  // Semana (segunda a domingo): conclusões com exercícios pulados contam como dia normal.
+  const weekDays = weekDates();
+  const weekDone = weekCount(recentDates);
+  const weekGoal = days.filter(d => !d.is_rest).length;
+  const weekDoneDates = recentDates.filter(d => weekDays.includes(d));
+
   // Estado para a tela decidir o que mostrar. Depois da 1ª carga, uma recarga
   // (foco, "Tentar de novo") nunca volta para 'loading': os dados ficam na tela.
   const status: WorkoutStatus = !hasLoaded
@@ -173,6 +204,12 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
     lastCompletion,
     nextWorkout,
     stats,
+    /** Dias treinados nesta semana (semana começa na segunda). */
+    weekDone,
+    /** Meta semanal = dias de treino (não descanso) do programa. */
+    weekGoal,
+    weekDays,
+    weekDoneDates,
     /** Compatibilidade: true só no primeiro carregamento (status === 'loading'). */
     loading: status === 'loading',
     /** Recarga em andamento (inclusive a primeira). Para indicador discreto. */
@@ -181,6 +218,8 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
     error,
     /** Erro ao concluir o treino, em pt-BR. */
     saveError,
+    /** Erro ao marcar/desmarcar um exercício, em pt-BR. */
+    checkError,
     toggleCheck,
     completeWorkout,
     notes,

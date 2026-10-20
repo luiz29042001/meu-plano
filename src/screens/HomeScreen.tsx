@@ -5,13 +5,16 @@ import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
 import { useWorkout } from '../hooks/useWorkout';
 import { useTheme, makeStyles } from '../contexts/ThemeContext';
-import { MONTH_NAMES } from '../utils/date';
-import { Font, FontSize, LineHeight, Radius, Spacing, Touch, Tracking, numberLineHeight } from '../utils/theme';
-import { PrimaryButton } from '../components/Buttons';
+import { MONTH_NAMES, todayISO } from '../utils/date';
+import { Font, FontSize, LineHeight, Radius, Spacing, Touch, Tracking } from '../utils/theme';
+import { PrimaryButton, OutlineButton } from '../components/Buttons';
 import { DayHeadline } from '../components/DayHeadline';
 import { NumbersRow } from '../components/NumbersRow';
 import { ErrorBlock } from '../components/ErrorBlock';
 import { Skeleton } from '../components/Skeleton';
+import { Notice } from '../components/Notice';
+import { WeekStrip } from '../components/WeekStrip';
+import { useOnline } from '../hooks/useOnline';
 import { useTimerInsets } from '../hooks/useTimerInsets';
 
 const WEEKDAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -61,11 +64,10 @@ const useStyles = makeStyles(c => ({
   rowValue: { flexShrink: 1, textAlign: 'right', fontFamily: Font.body, fontSize: FontSize.md, color: c.textMuted },
   rowValueFaint: { color: c.textFaint },
   chevron: { fontFamily: Font.condMedium, fontSize: FontSize.xl, color: c.textMuted, includeFontPadding: false },
-  foot: { marginTop: Spacing.xxxl, fontFamily: Font.body, fontSize: FontSize.md, color: c.textMuted },
-  footNum: {
-    fontFamily: Font.condBold, fontSize: FontSize.xl, lineHeight: numberLineHeight(FontSize.xl),
-    color: c.text, fontVariant: ['tabular-nums'], includeFontPadding: false,
-  },
+  kicker: { fontFamily: Font.body, fontSize: FontSize.sm, color: c.textMuted, marginBottom: Spacing.md },
+  weekNums: { marginTop: Spacing.xl },
+  notice: { marginTop: Spacing.lg },
+  retry: { marginTop: Spacing.lg },
 }));
 
 function ListRow({
@@ -100,20 +102,15 @@ export function HomeScreen() {
   const styles = useStyles();
   const { colors, dayColor } = useTheme();
   const navigation = useNavigation<any>();
-  const { profile, dietMode } = useAuth();
+  const { profile } = useAuth();
   const {
-    status, error, retry, nextWorkout, lastCompletion, todayCompletion, stats,
+    status, error, retry, nextWorkout, lastCompletion, todayCompletion,
+    weekDone, weekGoal, weekDays, weekDoneDates,
   } = useWorkout({ refreshOnFocus: true });
+  const online = useOnline();
   const timerInsets = useTimerInsets();
 
   const firstName = profile?.full_name?.split(' ')[0] ?? 'Atleta';
-
-  const dietValue =
-    dietMode === 'fixed' ? 'Variantes A e B'
-    : dietMode === 'plan' ? (profile?.diet_plan?.name ?? 'Plano alimentar')
-    : dietMode === 'pending' ? 'Em preparação'
-    : dietMode === 'error' ? 'Não foi possível carregar'
-    : 'Carregando…';
 
   // Números do próximo treino (estimativa, só para dar noção ao usuário)
   const exercises = nextWorkout?.exercises ?? [];
@@ -142,6 +139,11 @@ export function HomeScreen() {
           </Pressable>
         </View>
         <Text style={styles.hello}>{greeting()}, {firstName}. {todayLabel()}</Text>
+        {!online && status === 'ready' && (
+          <View style={styles.notice}>
+            <Notice tone="neutral" text="Sem internet. Mostrando o último treino carregado." />
+          </View>
+        )}
 
         {/* Próximo treino (definido pelo último concluído, não pelo dia) */}
         {status === 'loading' && (
@@ -166,6 +168,7 @@ export function HomeScreen() {
           <View style={styles.block}>
             <DayHeadline label="Sem programa" color={colors.restColor} />
             <Text style={styles.emptyText}>Você ainda não tem um programa de treino.</Text>
+            <OutlineButton label="Atualizar" onPress={retry} style={styles.retry} />
           </View>
         )}
 
@@ -191,33 +194,48 @@ export function HomeScreen() {
                 onPress={() => navigation.navigate('Workout', { daySlug: nextWorkout.slug })}
               />
             </View>
-            {lastCompletion?.workout_day && (
+            {lastCompletion?.workout_day ? (
               <Text style={styles.note}>Último treino: {lastCompletion.workout_day.label}.</Text>
+            ) : (
+              <Text style={styles.note}>Seu primeiro treino começa aqui.</Text>
             )}
+          </View>
+        )}
+
+        {/* Semana: dias treinados (semana começa na segunda), sem sequência */}
+        {status === 'loading' && (
+          <View style={styles.block}>
+            <Skeleton width={120} height={18} />
+            <Skeleton height={56} style={styles.gap} />
+          </View>
+        )}
+        {status === 'ready' && weekGoal > 0 && (
+          <View style={styles.block}>
+            <Text style={styles.kicker}>Esta semana</Text>
+            <WeekStrip dates={weekDays} doneDates={weekDoneDates} today={todayISO()} goal={weekGoal} />
+            <View style={styles.weekNums}>
+              <NumbersRow items={[{
+                value: `${weekDone > 99 ? '99+' : weekDone}/${weekGoal > 99 ? '99+' : weekGoal}`,
+                label: 'treinos na semana',
+                ok: weekDone >= weekGoal,
+              }]} />
+            </View>
           </View>
         )}
 
         {/* Navegação */}
         <View style={styles.list}>
           <ListRow
-            label="Dieta"
-            value={dietValue}
-            faint={dietMode === 'pending'}
-            onPress={dietMode === 'pending' ? undefined : () => navigation.navigate('Diet')}
-          />
-          <ListRow
             label="Calendário"
             value="Histórico de treinos"
             onPress={() => navigation.navigate('Calendar')}
           />
+          <ListRow
+            label="Perfil"
+            value="Aparência, avisos e conta"
+            onPress={() => navigation.navigate('Profile')}
+          />
         </View>
-
-        {status === 'ready' && (
-          <Text style={styles.foot}>
-            <Text style={styles.footNum}>{stats?.total_workouts ?? 0}</Text>
-            {' '}treinos concluídos desde o início
-          </Text>
-        )}
       </ScrollView>
     </SafeAreaView>
   );

@@ -11,6 +11,7 @@ export type TimerPosition = 'top' | 'bottom';
 
 export const THEME_STORAGE_KEY = 'meu-plano:tema';
 export const TIMER_POSITION_KEY = 'meu-plano:cronometro-posicao';
+export const AUTO_REST_KEY = 'meu-plano:descanso-auto';
 export const NOTIF_PROMPT_KEY = 'meu-plano:notif-pedida';
 export const EXACT_ALARM_NOTICE_KEY = 'meu-plano:aviso-alarme-exato';
 
@@ -43,7 +44,8 @@ export function saveThemePreference(p: ThemePreference): Promise<void> {
 // ─── Posição do cronômetro ───────────────────────────────────────────────────
 export async function loadTimerPosition(): Promise<TimerPosition> {
   const v = await read(TIMER_POSITION_KEY);
-  return v === 'top' ? 'top' : 'bottom';
+  // Padrão 'top' para quem nunca moveu; a escolha salva continua valendo.
+  return v === 'bottom' ? 'bottom' : 'top';
 }
 
 export function saveTimerPosition(p: TimerPosition): Promise<void> {
@@ -75,4 +77,48 @@ export async function loadExactAlarmNoticeShown(): Promise<boolean> {
 
 export function saveExactAlarmNoticeShown(): Promise<void> {
   return write(EXACT_ALARM_NOTICE_KEY, String(Date.now()));
+}
+
+// ─── Descanso automático ao marcar série (padrão: ligado) ────────────────────
+export async function loadAutoRest(): Promise<boolean> {
+  return (await read(AUTO_REST_KEY)) !== 'off';
+}
+
+export function saveAutoRest(on: boolean): Promise<void> {
+  return write(AUTO_REST_KEY, on ? 'on' : 'off');
+}
+
+// ─── Séries feitas por dia e exercício (só neste aparelho) ───────────────────
+const SETS_PREFIX = 'sets:';
+
+export async function loadSetCounts(date: string): Promise<Record<number, number>> {
+  const out: Record<number, number> = {};
+  try {
+    const keys = await AsyncStorage.getAllKeys();
+    const mine = keys.filter(k => k.startsWith(`${SETS_PREFIX}${date}:`));
+    // Limpa dias antigos.
+    const old = keys.filter(k => k.startsWith(SETS_PREFIX) && !k.startsWith(`${SETS_PREFIX}${date}:`));
+    if (old.length) await AsyncStorage.multiRemove(old);
+    if (mine.length) {
+      const pairs = await AsyncStorage.multiGet(mine);
+      pairs.forEach(([k, v]) => {
+        const id = Number(k.slice(`${SETS_PREFIX}${date}:`.length));
+        const n = Number(v);
+        if (Number.isFinite(id) && Number.isFinite(n) && n > 0) out[id] = n;
+      });
+    }
+  } catch {
+    // Sem armazenamento: contagem vale só nesta sessão.
+  }
+  return out;
+}
+
+export async function saveSetCount(date: string, exerciseId: number, count: number): Promise<void> {
+  const key = `${SETS_PREFIX}${date}:${exerciseId}`;
+  try {
+    if (count > 0) await AsyncStorage.setItem(key, String(count));
+    else await AsyncStorage.removeItem(key);
+  } catch {
+    // ignora
+  }
 }

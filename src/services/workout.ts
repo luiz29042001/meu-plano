@@ -96,6 +96,17 @@ export async function markWorkoutComplete(
   return data as unknown as WorkoutCompletion;
 }
 
+/** Só as datas (YYYY-MM-DD) de treinos concluídos desde `fromISO`. */
+export async function fetchRecentCompletionDates(userId: string, fromISO: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('workout_completions')
+    .select('completed_date')
+    .eq('user_id', userId)
+    .gte('completed_date', fromISO);
+  if (error) throw error;
+  return (data ?? []).map((r: { completed_date: string }) => r.completed_date);
+}
+
 // ─── EXERCISE CHECKS ──────────────────────────────────────────────────────────
 
 export async function fetchExerciseChecks(

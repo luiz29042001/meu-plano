@@ -18,8 +18,7 @@ const useStyles = makeStyles(c => ({
     backgroundColor: c.text, paddingHorizontal: Spacing.sm, paddingVertical: 2,
   },
   tagText: {
-    fontFamily: Font.condSemi, fontSize: FontSize.sm, color: c.bg,
-    textTransform: 'uppercase', letterSpacing: Tracking.caps, includeFontPadding: false,
+    fontFamily: Font.bodySemi, fontSize: FontSize.sm, color: c.bg, includeFontPadding: false,
   },
   titleRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: Spacing.md },
   title: {

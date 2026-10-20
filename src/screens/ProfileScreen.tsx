@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, Vibration, View, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme, makeStyles } from '../contexts/ThemeContext';
 import { useTimerInsets } from '../hooks/useTimerInsets';
 import { useRestNotification } from '../hooks/useRestNotification';
+import { loadAutoRest, saveAutoRest } from '../services/devicePrefs';
 import { confirmAction } from '../utils/confirm';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { OutlineButton } from '../components/Buttons';
@@ -16,9 +17,14 @@ import {
 } from '../utils/theme';
 
 const OPTIONS: { value: ThemePreference; label: string }[] = [
-  { value: 'system', label: 'Automático' },
+  { value: 'system', label: 'Sistema' },
   { value: 'light', label: 'Claro' },
   { value: 'dark', label: 'Escuro' },
+];
+
+const REST_OPTIONS: { value: 'on' | 'off'; label: string }[] = [
+  { value: 'on', label: 'Sim' },
+  { value: 'off', label: 'Não' },
 ];
 
 const SCHEME_NAME = { light: 'claro', dark: 'escuro' } as const;
@@ -92,6 +98,15 @@ export function ProfileScreen() {
   const { scheme, preference, setPreference } = useTheme();
   const rest = useRestNotification();
   const timerInsets = useTimerInsets();
+  const [autoRest, setAutoRest] = useState<'on' | 'off'>('on');
+  useEffect(() => { loadAutoRest().then(v => setAutoRest(v ? 'on' : 'off')); }, []);
+
+  const chooseAutoRest = (v: 'on' | 'off') => {
+    if (v === autoRest) return;
+    setAutoRest(v);
+    void saveAutoRest(v === 'on');
+    if (Platform.OS === 'android') Vibration.vibrate(10);
+  };
 
   const loadingProfile = profileStatus === 'idle' || profileStatus === 'loading';
   // Erro ao carregar o perfil: mostra "Atleta"; seletor e Sair seguem funcionando (spec §5.4).
@@ -125,7 +140,7 @@ export function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScreenHeader title="Perfil" />
       <ScrollView
         contentContainerStyle={[styles.scroll, { paddingBottom: timerInsets.bottom }]}
@@ -173,6 +188,15 @@ export function ProfileScreen() {
           onChange={choose}
         />
         <Text style={styles.help} accessibilityLiveRegion="polite">{help}</Text>
+
+        <Text style={styles.sectionTitle} accessibilityRole="header">Treino</Text>
+        <Segmented
+          label="Iniciar descanso ao marcar série"
+          options={REST_OPTIONS}
+          value={autoRest}
+          onChange={chooseAutoRest}
+        />
+        <Text style={styles.help}>Iniciar descanso ao marcar série. O cronômetro começa sozinho a cada série feita.</Text>
 
         <View style={styles.signOutWrap}>
           <OutlineButton label="Sair da conta" tone="danger" onPress={handleSignOut} />

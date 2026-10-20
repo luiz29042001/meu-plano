@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchDietPlan } from '../services/diet';
 import { updateDietVariant } from '../services/profile';
-import { friendlyError } from '../utils/errors';
+import { reportNetworkError, reportNetworkOk } from '../utils/networkStatus';
+import { friendlyError, isNetworkError } from '../utils/errors';
 import type { DietPlan, DietStatus } from '../types';
 
 type PlanState = 'idle' | 'loading' | 'ready' | 'error';
@@ -37,6 +38,7 @@ export function useDiet() {
     fetchDietPlan(planId)
       .then(p => {
         if (!alive) return;
+        reportNetworkOk();
         if (!p) {
           loadedPlanId.current = null;
           setPlan(null);
@@ -50,6 +52,7 @@ export function useDiet() {
       })
       .catch(e => {
         if (!alive) return;
+        if (isNetworkError(e)) reportNetworkError();
         if (loadedPlanId.current === planId) return; // mantém o plano já exibido
         setPlanState('error');
         setPlanError(friendlyError(e, 'Não foi possível carregar o seu plano alimentar.'));
@@ -64,16 +67,19 @@ export function useDiet() {
 
   /** Troca a variante. Devolve false se não conseguiu salvar (a escolha continua na tela). */
   const changeVariant = useCallback(async (v: 'A' | 'B'): Promise<boolean> => {
+    const previous = variant;
     setVariant(v);
-    if (!userId) return false;
+    if (!userId) { setVariant(previous); return false; }
     try {
       await updateDietVariant(userId, v);
       refreshProfile();
       return true;
-    } catch {
+    } catch (e) {
+      if (isNetworkError(e)) reportNetworkError();
+      setVariant(previous); // o banco manteve a anterior: a tela volta para ela
       return false;
     }
-  }, [userId, refreshProfile]);
+  }, [userId, variant, refreshProfile]);
 
   let status: DietStatus;
   if (dietMode === 'plan') {
@@ -102,5 +108,7 @@ export function useDiet() {
     variant,
     changeVariant,
     retry,
+    /** Relê o perfil (botão "Atualizar" da dieta em preparação). */
+    refresh: refreshProfile,
   };
 }

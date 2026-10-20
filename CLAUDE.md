@@ -176,12 +176,15 @@ Medição no PetPlace (181 M tokens processados em 25 h): 37% foi a conversa pri
 
 ## Pendências imediatas
 
-Estado do trabalho e próximos passos ficam em **`docs/retomada.md`** (leia ao começar). Resumo em 07/10/2026:
-- Versão tema claro/escuro, cronômetro móvel e notificação Android: **web publicada**; APK de teste gerado (ainda com ícone antigo), **falta o Luiz conferir no celular** (lista em `docs/review/tema-claro-escuro.md`). Logo nova pronta no código, vai no próximo APK/web.
-- Próximo APK só junto com mais mudanças (decisão do Luiz). Depois: atualizar `design-system.md` e a seção Design para a nova direção; `/lancar-versao`.
-- O token do GitHub colado em chat antigo deve ser **revogado**.
+Estado e próximos passos detalhados em **`docs/retomada.md`** (leia ao começar). Resumo abaixo, atualizado em 10/10/2026 (fonte: sessão do redesign):
+- **Versão em andamento (atualizado em 10/10/2026):** correções da revisão de 05/10 + feature `tema-claro-escuro` (redesign Splits59, temas claro/escuro com seletor no Perfil, cronômetro móvel, notificação Android via `modules/rest-timer`), já commitadas na branch `claude/great-rubin-26vere`. Revisão: `docs/review/tema-claro-escuro.md` (aprovado com ressalvas; I1–I4 e S1–S7 já corrigidos). Migração de segurança já aplicada. **Web publicada em 10/10/2026** (commit `0078cd6` no repositório do site). **Build EAS `preview` iniciado em 10/10/2026:** https://expo.dev/accounts/luiz2904s-team/projects/app-saude/builds/7bafd770-88d1-472e-b673-a8b0db14311d (primeira compilação do Kotlin; se falhar, ler o log). Próximos passos, cada um com OK do Luiz: (1) Luiz instala o APK e confere a lista de `docs/review/tema-claro-escuro.md`; (2) QA visual na web (ainda não feito); (3) atualizar `design-system.md` e a seção Design deste arquivo para a nova direção; (4) merge da branch na principal.
+
+- ~~Gerar um novo APK~~: build de 10/10/2026 em andamento (ver acima).
+- **Build EAS pela nuvem (descoberto em 10/10/2026):** a chave do Expo é injetada pelo proxy, então o `eas` diz "Not logged in". Use `EXPO_TOKEN=proxy-injected EAS_NO_VCS=1 npx eas-cli build --platform android --profile preview --no-wait --non-interactive`. O Claude Code pede OK explícito no chat para builds e para push no repositório do site (`luiz29042001.github.io`, adicionar com `add_repo` e acesso de escrita).
+- O token do GitHub colado no chat antigo deve ser **revogado**.
 
 ## Roadmap
+
 
 Decidido com o Luiz, nesta ordem: (1) cada usuário com seus próprios planos + onboarding sem programa; (2) onboarding com Claude gerando só o treino (Edge Function, dieta nunca por IA, LGPD); (3) publicação na Google Play (API 36, exclusão de conta, teste fechado). Detalhes em **`docs/roadmap.md`** — leia só quando for trabalhar nisso.
 
