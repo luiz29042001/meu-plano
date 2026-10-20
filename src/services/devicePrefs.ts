@@ -79,9 +79,9 @@ export function saveExactAlarmNoticeShown(): Promise<void> {
   return write(EXACT_ALARM_NOTICE_KEY, String(Date.now()));
 }
 
-// ─── Descanso automático ao marcar série (padrão: ligado) ────────────────────
+// ─── Descanso automático ao marcar série (padrão: DESLIGADO; a pessoa liga no Perfil) ────────────────────
 export async function loadAutoRest(): Promise<boolean> {
-  return (await read(AUTO_REST_KEY)) !== 'off';
+  return (await read(AUTO_REST_KEY)) === 'on';
 }
 
 export function saveAutoRest(on: boolean): Promise<void> {

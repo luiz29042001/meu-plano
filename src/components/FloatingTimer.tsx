@@ -406,8 +406,8 @@ export function FloatingTimer() {
               <OutlineButton label="+30 s" onPress={() => addTime(30)} style={styles.compactBtn} />
               <OutlineButton label={mainLabel} onPress={onMain} style={styles.compactBtn} />
               <OutlineButton
-                label={finished ? 'Fechar' : 'Pular'}
-                accessibilityLabel={finished ? 'Fechar cronômetro' : 'Pular descanso'}
+                label="Fechar"
+                accessibilityLabel="Fechar cronômetro"
                 onPress={closeTimer}
                 style={styles.compactBtn}
               />
@@ -439,8 +439,8 @@ export function FloatingTimer() {
                 <View style={styles.spacer} />
                 {moveButton}
                 <OutlineButton
-                  label={finished ? 'Fechar' : 'Pular'}
-                  accessibilityLabel={finished ? 'Fechar cronômetro' : 'Pular descanso'}
+                  label="Fechar"
+                  accessibilityLabel="Fechar cronômetro"
                   onPress={closeTimer}
                   style={styles.compactBtn}
                 />

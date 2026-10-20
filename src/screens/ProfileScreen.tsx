@@ -98,7 +98,7 @@ export function ProfileScreen() {
   const { scheme, preference, setPreference } = useTheme();
   const rest = useRestNotification();
   const timerInsets = useTimerInsets();
-  const [autoRest, setAutoRest] = useState<'on' | 'off'>('on');
+  const [autoRest, setAutoRest] = useState<'on' | 'off'>('off');
   useEffect(() => { loadAutoRest().then(v => setAutoRest(v ? 'on' : 'off')); }, []);
 
   const chooseAutoRest = (v: 'on' | 'off') => {

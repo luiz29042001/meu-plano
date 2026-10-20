@@ -373,7 +373,7 @@ export function WorkoutScreen() {
     days, checks, todayCompletion, nextWorkout,
     status, error, retry, saveError, checkError, toggleCheck, completeWorkout, notes, saveNote,
   } = useWorkout();
-  const { launchTimer } = useTimerActions();
+  const { launchTimer, closeTimer } = useTimerActions();
   const timerInsets = useTimerInsets();
   const { profile } = useAuth();
   const online = useOnline();
@@ -382,7 +382,7 @@ export function WorkoutScreen() {
   const { counts, setCount } = useSetProgress(today);
 
   // Descanso automático ao marcar série (preferência do aparelho, padrão ligado).
-  const [autoRest, setAutoRest] = useState(true);
+  const [autoRest, setAutoRest] = useState(false);
   useEffect(() => { loadAutoRest().then(setAutoRest); }, []);
 
   // Seleção do treino ativo, nesta ordem de prioridade:
@@ -493,6 +493,7 @@ export function WorkoutScreen() {
   const toggle = (id: number, was: boolean) => {
     lastToggleRef.current = { id, was };
     toggleCheck(id, was);
+    if (!was) closeTimer(); // exercício marcado como feito: fecha o cronômetro
     // Voltar a "pendente" zera as séries; marcar sem séries mantém a contagem.
     if (was) setCount(id, 0);
   };
@@ -560,7 +561,9 @@ export function WorkoutScreen() {
       setFocusId(null);
     }
     const startRest = autoRest && !finishesAll;
+    // Série feita não deixa o descanso anterior rodando; o descanso só volta quando a pessoa pedir (ou se ligou o automático).
     if (startRest) launchTimer(current.name, current.rest_seconds, activeDay.color);
+    else closeTimer();
     AccessibilityInfo.announceForAccessibility(
       `Série ${next} de ${n} feita.${startRest ? ` Descanso de ${current.rest_seconds} segundos.` : ''}`,
     );
