@@ -2,16 +2,16 @@
 
 Última atualização: 07/10/2026. Branch de trabalho: `master-uo6l8h`.
 
-## Onde paramos
-- Web publicada (repo luiz29042001.github.io) com o redesign Splits59, temas claro/escuro, cronômetro móvel.
-- APK de teste do perfil `preview` gerado em 06/10 (build 0983c8b0-bc82-41c4-8e16-b50455a35baa), com ícone antigo. O Luiz vai conferir no celular.
-- Logo nova (halter com anilhas verdes): ícones, splash claro/escuro, favicon e ícones da web já no código. Só aparece no próximo APK e na próxima publicação da web.
-- Fluxo enxuto (economia de tokens) adaptado do PetPlace e incorporado ao CLAUDE.md e aos agentes.
+## Onde paramos (20/10/2026)
+- Branch `master-uo6l8h` agora = redesign final (branch `claude/great-rubin-26vere`, de 10/10) + `origin/master` (kit/skills do notebook) + logo nova + ajuste do cronômetro.
+- Cronômetro (notas de teste do Luiz): descanso automático ao marcar série agora vem DESLIGADO por padrão (liga no Perfil); marcar série/exercício como feito fecha o cronômetro; o botão é sempre "Fechar".
+- Web publicada em 20/10 (repo do site, commit 8db709f) com tudo isso. Conferir se o build do Pages terminou.
+- APK: último build de 10/10 (7bafd770...) tem o redesign mas NÃO a logo nem o ajuste do cronômetro. Próximo APK só com OK do Luiz.
 
 ## Próximos passos (cada um com OK do Luiz)
-1. Luiz confere o APK de teste (lista "O que conferir no celular Android" em `docs/review/tema-claro-escuro.md`).
-2. Corrigir o que ele achar; então atualizar `docs/design/design-system.md` e a seção Design do CLAUDE.md.
-3. Próximo APK + publicação da web juntos (logo nova vai junto).
+1. Confirmar que o Pages publicou; Usuária 2/Luiz conferem a web.
+2. Gerar novo APK (logo + cronômetro) e conferir no celular.
+3. Atualizar `docs/design/design-system.md` e a seção Design do CLAUDE.md para o design final.
 
 ## Armadilhas desta etapa
 - Nuvem: EAS e Supabase (Management API) funcionam; Playwright MCP do `.mcp.json` só roda no Windows.
