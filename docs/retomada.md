@@ -2,6 +2,11 @@
 
 Última atualização: 07/10/2026. Branch de trabalho: `master-uo6l8h`.
 
+## 23/10/2026 — plano do Luiz atualizado
+- Treino: PPL 6x -> Superior/Inferior 4x (migração `20261023120000_treino_4x_superior_inferior`, aplicada em produção; ensaiada com rollback antes). Exercícios e anotações preservados; Pull A/B arquivados no programa `ppl-6x-arquivo`.
+- Dieta (`dietData.ts`): café novo (com manteiga), sem lanche da manhã, iogurte no lanche da tarde, sem banana (sobra ~450 kcal/semana para o fim de semana). Total ~2.050 kcal.
+- Pendente: tela de dieta ainda mostra "Treino em Jejum" nos dias de descanso; histórico de Pull pode aparecer sem nome no calendário (RLS).
+
 ## Onde paramos (20/10/2026)
 - Branch `master-uo6l8h` agora = redesign final (branch `claude/great-rubin-26vere`, de 10/10) + `origin/master` (kit/skills do notebook) + logo nova + ajuste do cronômetro.
 - Cronômetro (notas de teste do Luiz): descanso automático ao marcar série agora vem DESLIGADO por padrão (liga no Perfil); marcar série/exercício como feito fecha o cronômetro; o botão é sempre "Fechar".

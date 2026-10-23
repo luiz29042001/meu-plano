@@ -3,6 +3,10 @@
 -- Nenhum exercício é apagado; os que saem do plano ficam nos dias "arquivados" (Pull A / Pull B).
 begin;
 
+-- Dias do programa do Luiz (guardados antes de renomear/arquivar). Tudo abaixo fica restrito a eles: a Usuária 2 não é tocada.
+create temp table _luiz_days on commit drop as
+  select d.id from public.workout_days d join public.workout_programs p on p.id = d.program_id where p.slug = 'ppl-6x';
+
 -- 1) Programa
 update public.workout_programs
    set slug = 'ul-4x', name = 'Superior · Inferior', description = '4 treinos por semana'
@@ -45,18 +49,18 @@ insert into _mv values
   ('Cadeira Flexora','lower-b',3), ('Hack Squat ou Leg Press (pés altos)','lower-b',4),
   ('Hip Thrust','lower-b',5), ('Panturrilha Sentado (máquina)','lower-b',6), ('Pallof Press','lower-b',7);
 
--- posição provisória para não bater em constraint de ordem
-update public.exercises set position = position + 100;
+-- posição provisória (só nos dias do Luiz)
+update public.exercises set position = position + 100 where workout_day_id in (select id from _luiz_days);
 
 update public.exercises e
    set workout_day_id = d.id, position = m.pos
   from _mv m
   join public.workout_days d on d.slug = m.day_slug
- where e.name = m.name;
+ where e.name = m.name and e.workout_day_id in (select id from _luiz_days);
 
--- Exercícios que sairam do plano: voltam para o dia de arquivo mais próximo (sem apagar)
-update public.exercises e
-   set workout_day_id = (select id from public.workout_days where slug = 'pull-a'), position = position
- where position > 100 and workout_day_id in (select id from public.workout_days where slug in ('upper-a','upper-b','lower-a','lower-b'));
+-- Exercícios que saíram do plano: vão para o dia arquivado Pull A (nada é apagado)
+update public.exercises
+   set workout_day_id = (select id from public.workout_days where slug = 'pull-a'), position = position - 100
+ where position > 100 and workout_day_id in (select id from _luiz_days);
 
 commit;

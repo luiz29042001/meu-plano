@@ -23,7 +23,7 @@ App pessoal de treino e dieta usado hoje por 2 pessoas:
 
 | Usuário | Plataforma | Programa de treino | Dieta |
 |---|---|---|---|
-| Luiz | Android (APK via EAS) | `ppl-6x`: Push/Pull/Legs, 6x/semana, treino em jejum de manhã | Fixa no código (`src/services/dietData.ts`), variantes A/B, déficit calórico |
+| Luiz | Android (APK via EAS) | `ul-4x`: Superior/Inferior A e B, 4x/semana (desde 23/10/2026, por causa dos estudos de IA; antes `ppl-6x`), treino em jejum de manhã | Fixa no código (`src/services/dietData.ts`), variantes A/B, ~2.050 kcal; café: 2 fatias de pão multigrãos, 3 ovos, 1 muçarela, manteiga e café; sem lanche da manhã |
 | Esposa (Usuária 2) | Web/PWA no iPhone (Safari) | `fem-5x`: Inferior/Superior + Glúteos C, 5x/semana, foco em glúteos e posteriores | No banco (`diet_plans`, slug `ciclo-carbo-exemplo`): ciclo de carboidratos com variantes Treino/Descanso, prescrita pela nutricionista a nutricionista |
 
 ## Stack
@@ -57,7 +57,7 @@ src/components/FloatingTimer overlay do cronômetro, sobre todas as telas
 
 Tabelas:
 - `profiles`: `id`, `email`, `full_name`, `diet_variant` ('A'|'B'), `program_id`, `diet_enabled`, `diet_plan_id`.
-- `workout_programs`: `slug`, `name`, `description` → `ppl-6x`, `fem-5x`.
+- `workout_programs`: `slug`, `name`, `description` → `ul-4x` (Luiz), `fem-5x`, `ppl-6x-arquivo` (dias Pull antigos).
 - `workout_days`: `slug` (único global; a esposa usa o prefixo `f-`), `label`, `weekday_index` (ordem da sequência), `color`, `muscles`, `is_rest`, `program_id`.
 - `exercises`: `workout_day_id`, `position`, `name`, `sets`, `reps`, `rest_seconds`, `tip`.
 - `workout_completions`: um registro por usuário por dia (`unique(user_id, completed_date)`). Um trigger recalcula `user_stats`.
