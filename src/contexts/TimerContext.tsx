@@ -1,3 +1,10 @@
+/**
+ * # Contexto do cronômetro de descanso (`TimerContext.tsx`)
+ * Dono do cronômetro entre as séries. Calcula o tempo restante, toca o alerta no fim e conversa com a notificação do Android.
+ *
+ * > **Armadilha resolvida (4):** o tempo restante é sempre calculado a partir do **horário de término** (`endsAt`), nunca "subtraindo 1 a cada segundo". Se o app vai para segundo plano e o sistema congela o relógio, ao voltar o valor mostrado continua correto.
+ */
+
 import React, {
   createContext, useContext, useState, useEffect, useRef, useCallback, useMemo,
 } from 'react';
@@ -11,13 +18,24 @@ import {
   cancelRestNotification, isNativeAlertArmed, requestNotificationPermission, startRestNotification,
 } from '../services/restNotification';
 
+/**
+ * Reexporta o tipo da posição para quem importa deste arquivo.
+ */
 export type { TimerPosition } from '../services/devicePrefs';
 
+/**
+ * ## Contratos
+ * O contexto é dividido em **três** (ações, estado, layout) para a tela de Treino não redesenhar a cada segundo: só quem lê o estado (`FloatingTimer`) acompanha o tique.
+ */
 // ─── Contratos ───────────────────────────────────────────────────────────────
 // O contexto é dividido em três para a tela de Treino não re-renderizar a cada
 // segundo: só quem lê `timerState` (o FloatingTimer) acompanha o tick.
 
 /** Ações estáveis (mesma referência durante toda a vida do app). */
+/**
+ * ### `TimerActions`
+ * Ações com referência estável (nunca mudam): `launchTimer` (iniciar), `closeTimer`, `toggleTimer` (pausar/retomar), `resetTimer`, `setPreset` (escolher duração) e `addTime` (somar segundos).
+ */
 export interface TimerActions {
   /** `color` = cor CRUA do banco (workout_days.color); o FloatingTimer traduz com dayColor. */
   launchTimer(label: string, seconds: number, color: string): void;
@@ -30,6 +48,10 @@ export interface TimerActions {
 }
 
 /** Posição e altura do painel. Muda só ao mover, medir, abrir ou fechar. */
+/**
+ * ### `TimerLayout`
+ * Posição do painel (topo/rodapé), altura medida e deslocamento de uma barra fixa acima das abas (`bottomOffset`), com seus "setters".
+ */
 export interface TimerLayout {
   position: TimerPosition;
   /** Atualiza na hora e salva no aparelho ('meu-plano:cronometro-posicao'). */
@@ -44,20 +66,30 @@ export interface TimerLayout {
   setBottomOffset(h: number): void;
 }
 
+/**
+ * Os três contextos: ações, estado e layout.
+ */
 const ActionsContext = createContext<TimerActions | null>(null);
 const StateContext = createContext<TimerState | null>(null);
 const LayoutContext = createContext<TimerLayout | null>(null);
 
+/**
+ * `DEFAULT`: estado inicial e estado "fechado" (90 s, parado, invisível).
+ */
 const DEFAULT: TimerState = {
   visible: false, seconds: 90, total: 90, running: false, label: '', color: '',
 };
 
-// ─── Áudio ───────────────────────────────────────────────────────────────────
-// Um único AudioContext reaproveitado. No iPhone (Safari) o áudio só é liberado
-// se o contexto for criado/retomado durante um toque do usuário, por isso
-// chamamos unlockAudio() ao iniciar o cronômetro.
+/**
+ * ## Áudio e alerta
+ * Um único `AudioContext` reaproveitado. No iPhone (Safari) o som só é liberado se for criado dentro de um **toque do usuário**; por isso `unlockAudio()` roda ao iniciar o cronômetro.
+ */
 let audioCtx: any = null;
 
+/**
+ * ### `unlockAudio()`
+ * Só na web. Cria (ou retoma) o contexto de áudio durante um toque do usuário, requisito do Safari.
+ */
 function unlockAudio() {
   if (Platform.OS !== 'web') return;
   try {
@@ -68,6 +100,20 @@ function unlockAudio() {
   } catch {}
 }
 
+/**
+ * ### `alertFinished()`
+ * Avisa que o descanso acabou.
+ *
+ * **Android**
+ * 1. Se a notificação nativa está armada, o sistema já toca e vibra: não faz nada (evita alerta duplicado).
+ * 2. Senão, vibra com um padrão de pulsos.
+ * 3. Com o app aberto, cancela a notificação para não tocar atrasada.
+ *
+ * **Web**
+ * 1. Garante o áudio liberado.
+ * 2. Define `beep` (oscilador + ganho com subida e descida suaves, com início e fim agendados).
+ * 3. Toca três bipes (dois iguais e um mais agudo e longo) e vibra, se o aparelho permitir.
+ */
 function alertFinished() {
   if (Platform.OS !== 'web') {
     // Android: se a notificação está armada com alarme exato, o próprio
@@ -104,6 +150,10 @@ function alertFinished() {
   } catch {}
 }
 
+/**
+ * ### `remainingFrom(endsAt)`
+ * Segundos que faltam até `endsAt`, arredondados para cima e nunca negativos.
+ */
 const remainingFrom = (endsAt: number) => Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
 
 // ─── Provider ────────────────────────────────────────────────────────────────
@@ -111,22 +161,41 @@ const remainingFrom = (endsAt: number) => Math.max(0, Math.ceil((endsAt - Date.n
 // término (endsAtRef). Se o app for para segundo plano e o sistema congelar o
 // intervalo, ao voltar o cronômetro mostra o tempo correto. A notificação do
 // Android recebe apenas uma CÓPIA do endsAt; nada fora daqui o altera.
+/**
+ * ## `TimerProvider`
+ * Componente que mantém o cronômetro e fornece os três contextos.
+ */
 export function TimerProvider({ children }: { children: React.ReactNode }) {
+  // `timerState` é o que a tela mostra (segundos, rodando, rótulo...).
   const [timerState, setTimerState] = useState<TimerState>(DEFAULT);
+  // `stateRef` é um espelho síncrono do estado: permite efeitos colaterais (notificação) fora do `setState`, sem depender de nova renderização.
   // Espelho síncrono do estado: permite efeitos colaterais (notificação) fora
   // do updater do setState, sem depender de render.
   const stateRef = useRef<TimerState>(DEFAULT);
+  // `endsAtRef` guarda o **horário de término** em milissegundos (`null` = sem contagem). É a fonte da verdade do tempo.
   const endsAtRef = useRef<number | null>(null);
+  // `firedRef` garante que o alerta de fim toque **uma vez** por contagem.
   const firedRef = useRef(false);
+  // `notifAskedRef` lembra se a permissão de notificação já foi pedida (`null` = ainda não lido do aparelho).
   const notifAskedRef = useRef<boolean | null>(null); // null = ainda não lido
 
+  // ### `commit(next)`
+  // Atualiza espelho e estado juntos, mantendo-os sempre iguais.
   const commit = useCallback((next: TimerState) => {
     stateRef.current = next;
     setTimerState(next);
   }, []);
 
+  // ## Notificação (Android; na web não faz nada)
   // ─── Notificação (Android; no-op na web) ──────────────────────────────────
   // Na primeira vez que um descanso começa, pede POST_NOTIFICATIONS (uma vez só).
+  // ### `armNotification(endsAt, label)`
+  // Liga a notificação com contagem.
+  //
+  // 1. Só no Android.
+  // 2. Na **primeira vez** que um descanso começa, pede a permissão de notificação (uma única vez).
+  // 3. Se o descanso foi pausado ou fechado enquanto o diálogo estava aberto, desiste.
+  // 4. Inicia a notificação com o horário de término e o nome do exercício.
   const armNotification = useCallback((endsAt: number, label: string) => {
     if (Platform.OS !== 'android') return;
     void (async () => {
@@ -142,12 +211,22 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
+  // ### `disarmNotification()`
+  // Cancela a notificação (só Android).
   const disarmNotification = useCallback(() => {
     if (Platform.OS !== 'android') return;
     void cancelRestNotification();
   }, []);
 
+  // ## O "tique"
   // ─── Tick ─────────────────────────────────────────────────────────────────
+  // ### `tick()`
+  // Roda a cada 250 ms enquanto o cronômetro corre.
+  //
+  // 1. Sem horário de término ou parado → nada a fazer.
+  // 2. Calcula o que falta.
+  // 3. Chegou a zero → zera o horário, toca o alerta (uma vez) e para o cronômetro. A notificação **não** é cancelada aqui, porque o alarme nativo pode estar tocando agora.
+  // 4. Senão, só atualiza a tela se o número de segundos mudou.
   const tick = useCallback(() => {
     const endsAt = endsAtRef.current;
     if (endsAt === null) return;
@@ -164,12 +243,16 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     if (prev.seconds !== remaining) commit({ ...prev, seconds: remaining });
   }, [commit]);
 
+  // ### Efeito: relógio
+  // Enquanto `running`, chama `tick` a cada 250 ms; ao parar, o `clearInterval` da limpeza desliga o relógio.
   useEffect(() => {
     if (!timerState.running) return;
     const id = setInterval(tick, 250);
     return () => clearInterval(id);
   }, [timerState.running, tick]);
 
+  // ### Efeito: voltar para o app
+  // Quando o app volta ao primeiro plano (celular) ou a aba fica visível (navegador), chama `tick` na hora, em vez de esperar o próximo intervalo.
   // Recalcula imediatamente ao voltar para o app (nativo e web)
   useEffect(() => {
     const sub = AppState.addEventListener('change', s => { if (s === 'active') tick(); });
@@ -184,7 +267,10 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     };
   }, [tick]);
 
+  // ## Ações
   // ─── Ações ────────────────────────────────────────────────────────────────
+  // ### `launchTimer(label, seconds, color)`
+  // Inicia uma contagem nova: libera o áudio, calcula o horário de término, abre o painel rodando e arma a notificação.
   const launchTimer = useCallback((label: string, seconds: number, color: string) => {
     unlockAudio();
     firedRef.current = false;
@@ -194,12 +280,20 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     armNotification(endsAt, label);
   }, [commit, armNotification]);
 
+  // ### `closeTimer()`
+  // Fecha o painel, volta ao estado inicial e cancela a notificação.
   const closeTimer = useCallback(() => {
     endsAtRef.current = null;
     commit(DEFAULT);
     disarmNotification();
   }, [commit, disarmNotification]);
 
+  // ### `toggleTimer()`
+  // Botão principal (pausar / retomar / reiniciar).
+  //
+  // 1. **Terminado** (0 s) → volta ao tempo total, parado, e remove o "Descanso terminado".
+  // 2. **Rodando** → pausa congelando o tempo restante (mínimo 1 s) e cancela a notificação.
+  // 3. **Parado** → retoma: calcula novo horário de término e rearma a notificação.
   const toggleTimer = useCallback(() => {
     unlockAudio();
     const prev = stateRef.current;
@@ -226,6 +320,8 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     armNotification(endsAt, prev.label);
   }, [commit, armNotification, disarmNotification]);
 
+  // ### `resetTimer()`
+  // Volta ao tempo total, parado.
   const resetTimer = useCallback(() => {
     endsAtRef.current = null;
     const prev = stateRef.current;
@@ -233,6 +329,8 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     disarmNotification();
   }, [commit, disarmNotification]);
 
+  // ### `setPreset(seconds)`
+  // Escolhe uma duração (ex.: 60, 90, 120 s) e para a contagem.
   const setPreset = useCallback((seconds: number) => {
     endsAtRef.current = null;
     const prev = stateRef.current;
@@ -240,6 +338,12 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     disarmNotification();
   }, [commit, disarmNotification]);
 
+  // ### `addTime(seconds)`
+  // Soma tempo (botão "+30 s").
+  //
+  // 1. Ignora valores inválidos ou com o painel fechado.
+  // 2. **Rodando** → empurra o horário de término, atualiza o total e reagenda a notificação.
+  // 3. **Parado/terminado** → soma ao tempo parado (não inicia sozinho). Se estava em 0, remove o aviso de fim.
   const addTime = useCallback((seconds: number) => {
     if (!(seconds > 0)) return;
     const prev = stateRef.current;
@@ -259,16 +363,22 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     if (prev.seconds === 0) disarmNotification(); // tira o "Descanso terminado"
   }, [commit, armNotification, disarmNotification]);
 
+  // `actions` reúne as ações num objeto estável (`useMemo`), para quem as lê não redesenhar.
   const actions = useMemo<TimerActions>(() => ({
     launchTimer, closeTimer, toggleTimer, resetTimer, setPreset, addTime,
   }), [launchTimer, closeTimer, toggleTimer, resetTimer, setPreset, addTime]);
 
+  // ## Layout (posição salva no aparelho e altura medida)
   // ─── Layout (posição salva no aparelho + altura medida) ────────────────────
+  // Estados do layout: posição, altura medida do painel e deslocamento inferior.
   const [position, setPositionState] = useState<TimerPosition>('top');
   const [measuredHeight, setMeasuredHeight] = useState(0);
   const [bottomOffset, setBottomOffsetState] = useState(0);
+  // `positionTouchedRef` marca se a pessoa já moveu o painel antes de a leitura salva terminar.
   const positionTouchedRef = useRef(false);
 
+  // ### Efeito: ler a posição salva
+  // Se a pessoa já moveu o painel antes da leitura terminar, a escolha dela vale.
   useEffect(() => {
     let alive = true;
     loadTimerPosition().then(p => {
@@ -278,22 +388,30 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     return () => { alive = false; };
   }, []);
 
+  // ### `setPosition(p)`
+  // Move o painel e salva a escolha no aparelho.
   const setPosition = useCallback((p: TimerPosition) => {
     positionTouchedRef.current = true;
     setPositionState(p);
     void saveTimerPosition(p);
   }, []);
 
+  // ### `setPanelHeight(h)`
+  // Guarda a altura medida (arredondada). Só atualiza se mudou.
   const setPanelHeight = useCallback((h: number) => {
     const rounded = Math.max(0, Math.round(h));
     setMeasuredHeight(prev => (prev === rounded ? prev : rounded));
   }, []);
 
+  // ### `setBottomOffset(h)`
+  // Guarda o deslocamento inferior (arredondado). Só atualiza se mudou.
   const setBottomOffset = useCallback((h: number) => {
     const rounded = Math.max(0, Math.round(h));
     setBottomOffsetState(prev => (prev === rounded ? prev : rounded));
   }, []);
 
+  // ### `layout`
+  // Monta o objeto de layout. A altura do painel conta como 0 quando o cronômetro está fechado.
   const visible = timerState.visible;
   const layout = useMemo<TimerLayout>(() => ({
     position,
@@ -304,6 +422,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     setBottomOffset,
   }), [position, setPosition, visible, measuredHeight, setPanelHeight, bottomOffset, setBottomOffset]);
 
+  // Aninha os três provedores; quem está dentro lê só o que precisa.
   return (
     <ActionsContext.Provider value={actions}>
       <LayoutContext.Provider value={layout}>
@@ -315,27 +434,51 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * ## `required(value, hook)`
+ * Garante que o hook foi usado dentro do `TimerProvider`; senão lança um erro claro.
+ */
 function required<T>(value: T | null, hook: string): T {
   if (value === null) throw new Error(`${hook} precisa estar dentro de <TimerProvider>`);
   return value;
 }
 
-/** Só as ações. Não re-renderiza com o tick (use na tela de Treino). */
+/**
+ * ## `useTimerActions()`
+ * Só as ações. Não redesenha com o tique (use na tela de Treino).
+ *
+  * Só as ações. Não re-renderiza com o tick (use na tela de Treino).
+  */
 export function useTimerActions(): TimerActions {
   return required(useContext(ActionsContext), 'useTimerActions');
 }
 
-/** Posição e altura do painel (para a tela reservar espaço em cima ou embaixo). */
+/**
+ * ## `useTimerLayout()`
+ * Posição e altura do painel, para a tela reservar espaço.
+ *
+  * Posição e altura do painel (para a tela reservar espaço em cima ou embaixo).
+  */
 export function useTimerLayout(): TimerLayout {
   return required(useContext(LayoutContext), 'useTimerLayout');
 }
 
-/** Estado do cronômetro (re-renderiza a cada segundo enquanto corre). */
+/**
+ * ## `useTimerState()`
+ * O estado do cronômetro; redesenha a cada segundo enquanto corre.
+ *
+  * Estado do cronômetro (re-renderiza a cada segundo enquanto corre).
+  */
 export function useTimerState(): TimerState {
   return required(useContext(StateContext), 'useTimerState');
 }
 
-/** Compatível com o uso anterior: ações + estado (re-renderiza a cada segundo). */
+/**
+ * ## `useTimer()`
+ * Ações + estado juntos (compatível com o uso antigo). Redesenha a cada segundo.
+ *
+  * Compatível com o uso anterior: ações + estado (re-renderiza a cada segundo).
+  */
 export function useTimer(): TimerActions & { timerState: TimerState } {
   const actions = useTimerActions();
   const timerState = useTimerState();

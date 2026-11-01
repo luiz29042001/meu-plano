@@ -1,11 +1,15 @@
-// Escolha em segmentos colados (spec §4): 48px, contorno `border`;
-// selecionado = contorno `borderStrong`, fundo `surface`, texto `text`.
-// `radiogroup` + `radio` com estado `checked` para leitores de tela.
+/**
+ * # `Segmented`
+ * Escolha de uma opção entre poucas, em botões colados (ex.: Treino | Descanso). Usa papéis de acessibilidade de grupo de rádio para leitores de tela.
+ */
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { makeStyles } from '../contexts/ThemeContext';
 import { Font, FontSize, Spacing, Touch, Tracking } from '../utils/theme';
 
+/**
+ * Estilos: segmentos colados (a borda do próximo sobrepõe 1 px); o selecionado ganha contorno forte e fundo destacado.
+ */
 const useStyles = makeStyles(c => ({
   group: { flexDirection: 'row' },
   segment: {
@@ -21,6 +25,14 @@ const useStyles = makeStyles(c => ({
   textSelected: { color: c.text },
 }));
 
+/**
+ * ## `Segmented<T>({ options, value, onChange, label })`
+ * Componente genérico (`T`): funciona com qualquer conjunto de textos.
+ *
+ * 1. Percorre as opções.
+ * 2. `selected` → a opção atual.
+ * 3. Ao tocar, chama `onChange` com o valor da opção.
+ */
 export function Segmented<T extends string>({
   options, value, onChange, label,
 }: {

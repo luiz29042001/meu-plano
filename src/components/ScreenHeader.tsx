@@ -1,12 +1,21 @@
-// Cabeçalho de 56px das telas internas: voltar (44x44) + título Barlow.
+/**
+ * # `ScreenHeader`
+ * Cabeçalho de 56 px das telas internas: botão de voltar (44×44) e título.
+ */
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { makeStyles } from '../contexts/ThemeContext';
 import { Font, FontSize, Radius, Spacing, Touch, Tracking } from '../utils/theme';
 
+/**
+ * `HEADER_HEIGHT`: altura fixa, exportada para as telas calcularem espaços.
+ */
 export const HEADER_HEIGHT = 56;
 
+/**
+ * Estilos do cabeçalho, botão voltar, título e subtítulo.
+ */
 const useStyles = makeStyles(c => ({
   header: {
     height: HEADER_HEIGHT, flexDirection: 'row', alignItems: 'center',
@@ -34,6 +43,12 @@ const useStyles = makeStyles(c => ({
   right: { alignItems: 'center', justifyContent: 'center' },
 }));
 
+/**
+ * ## `ScreenHeader({ title, subtitle, right, back })`
+ * - `back` (padrão `true`) → mostra a seta "‹" que volta uma tela.
+ * - `subtitle` → linha pequena acima do título.
+ * - `right` → elemento opcional à direita (ex.: um botão).
+ */
 export function ScreenHeader({
   title, subtitle, right, back = true,
 }: { title: string; subtitle?: string; right?: React.ReactNode; back?: boolean }) {

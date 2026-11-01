@@ -1,3 +1,8 @@
+/**
+ * # `HomeScreen` — tela Início
+ * Mostra o **próximo treino**, o resumo da **semana** e atalhos para Calendário e Perfil.
+ */
+
 import React from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,9 +22,16 @@ import { WeekStrip } from '../components/WeekStrip';
 import { useOnline } from '../hooks/useOnline';
 import { useTimerInsets } from '../hooks/useTimerInsets';
 
+/**
+ * Nomes dos dias da semana e o tempo estimado de execução de uma série (45 s), usado no cálculo de minutos.
+ */
 const WEEKDAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 const SECONDS_PER_SET = 45; // execução da série, para a estimativa de minutos
 
+/**
+ * ## `greeting()`
+ * Saudação pelo horário: antes das 12 h "Bom dia"; até 18 h "Boa tarde"; depois "Boa noite".
+ */
 function greeting(): string {
   const h = new Date().getHours();
   if (h < 12) return 'Bom dia';
@@ -27,11 +39,18 @@ function greeting(): string {
   return 'Boa noite';
 }
 
+/**
+ * ## `todayLabel()`
+ * Texto da data de hoje, ex.: "Segunda, 3 de novembro.".
+ */
 function todayLabel(): string {
   const d = new Date();
   return `${WEEKDAYS[d.getDay()]}, ${d.getDate()} de ${MONTH_NAMES[d.getMonth()].toLowerCase()}.`;
 }
 
+/**
+ * Estilos da tela (cabeçalho com avatar, blocos, linhas de lista).
+ */
 const useStyles = makeStyles(c => ({
   container: { flex: 1, backgroundColor: c.bg },
   scroll: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.sm },
@@ -70,10 +89,15 @@ const useStyles = makeStyles(c => ({
   retry: { marginTop: Spacing.lg },
 }));
 
+/**
+ * ## `ListRow({ label, value, onPress, faint })`
+ * Linha de lista com rótulo e valor. Sem `onPress` é só informação (um bloco legível por leitores de tela); com `onPress` vira botão com seta "›" e destaque ao pressionar.
+ */
 function ListRow({
   label, value, onPress, faint,
 }: { label: string; value: string; onPress?: () => void; faint?: boolean }) {
   const styles = useStyles();
+  // `content`: o miolo da linha (rótulo à esquerda, valor e seta à direita), reaproveitado nas duas versões (com e sem toque).
   const content = (
     <>
       <Text style={styles.rowLabel}>{label}</Text>
@@ -98,8 +122,12 @@ function ListRow({
   );
 }
 
+/**
+ * ## `HomeScreen()`
+ */
 export function HomeScreen() {
   const styles = useStyles();
+  // Dados da tela: tema, navegação, perfil e o hook `useWorkout` (com recarga ao voltar o foco, para refletir o treino recém-concluído).
   const { colors, dayColor } = useTheme();
   const navigation = useNavigation<any>();
   const { profile } = useAuth();
@@ -110,8 +138,14 @@ export function HomeScreen() {
   const online = useOnline();
   const timerInsets = useTimerInsets();
 
+  // Primeiro nome da pessoa; sem nome, "Atleta".
   const firstName = profile?.full_name?.split(' ')[0] ?? 'Atleta';
 
+  // ### Estimativa do próximo treino
+  // 1. `exercises` → lista de exercícios do próximo dia.
+  // 2. `setsTotal` → soma das séries (converte o texto `sets` em número).
+  // 3. `minutes` → para cada exercício: séries × (descanso + 45 s de execução), somado e convertido para minutos.
+  // É só uma estimativa para dar noção à pessoa.
   // Números do próximo treino (estimativa, só para dar noção ao usuário)
   const exercises = nextWorkout?.exercises ?? [];
   const setsTotal = exercises.reduce((s, e) => s + (parseInt(e.sets, 10) || 0), 0);
@@ -119,6 +153,7 @@ export function HomeScreen() {
     exercises.reduce((s, e) => s + (parseInt(e.sets, 10) || 0) * (e.rest_seconds + SECONDS_PER_SET), 0) / 60,
   );
 
+  // ### O que a tela desenha
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
@@ -126,6 +161,7 @@ export function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         {timerInsets.top > 0 && <View style={{ height: timerInsets.top }} />}
+        {/* Cabeçalho com o nome do app e o avatar (inicial do nome) que abre o Perfil, mais a saudação. */}
         {/* Topo */}
         <View style={styles.header}>
           <Text style={styles.brand} accessibilityRole="header">Meu Plano</Text>
@@ -145,6 +181,7 @@ export function HomeScreen() {
           </View>
         )}
 
+        {/* Estados do bloco "Próximo treino": **carregando** (esqueletos), **erro** (com "tentar de novo"), **vazio** (sem programa) e **pronto** (manchete do dia, números, botão e último treino). */}
         {/* Próximo treino (definido pelo último concluído, não pelo dia) */}
         {status === 'loading' && (
           <View style={styles.block}>
@@ -202,6 +239,7 @@ export function HomeScreen() {
           </View>
         )}
 
+        {/* Bloco da semana: faixa com os dias treinados e o contador `feitos/meta`. Números acima de 99 viram "99+" para não estourar o layout. */}
         {/* Semana: dias treinados (semana começa na segunda), sem sequência */}
         {status === 'loading' && (
           <View style={styles.block}>
@@ -223,6 +261,7 @@ export function HomeScreen() {
           </View>
         )}
 
+        {/* Atalhos para o Calendário e o Perfil. */}
         {/* Navegação */}
         <View style={styles.list}>
           <ListRow

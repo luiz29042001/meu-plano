@@ -30,7 +30,7 @@ O desenvolvimento segue um fluxo com papéis separados, definidos em [`.claude/a
 | design-director | direção visual, spec e mockup | `docs/design/` |
 | backend-engineer | migrações, RLS, serviços (nunca aplica em produção) | `supabase/migrations/` |
 | ui-builder | implementa a tela conforme a spec | código |
-| qa-tester | valida a versão web (Playwright) | `docs/qa/` |
+| qa-tester | valida a versão web (Playwright) | `docs/qa/` (criado quando houver relatórios de QA) |
 | code-reviewer | revisão de corretude e segurança | `docs/review/` |
 
 Fluxo: planejamento + design → **aprovação humana** → dados → UI → QA → revisão → publicação, sempre com OK humano antes de qualquer ação em produção. Os modelos são escolhidos por custo/risco (modelo médio por padrão; o mais forte só em revisão de segurança e impasses). O [`CLAUDE.md`](CLAUDE.md) é o "manual do projeto" lido pelos agentes — regras, armadilhas já resolvidas e decisões.
@@ -47,6 +47,11 @@ docs/                 plano técnico, design, QA e revisões (uma pasta por pape
 public/               PWA (manifest, ícones)
 ```
 Pontos de leitura sugeridos: `docs/review/` (revisões que acharam falhas reais e as correções), `docs/tech/` (planos e decisões) e as "Armadilhas já resolvidas" no `CLAUDE.md`.
+
+## Como ler o código
+Todo arquivo de código tem um **comentário de abertura** explicando seu papel, e cada função, constante e etapa importante vem precedida de um comentário em markdown (títulos `##`, listas numeradas com o passo a passo e notas `>` para armadilhas). Foi escrito para quem está aprendendo e para quem avalia o projeto: dá para ler qualquer arquivo de cima para baixo como um texto. Os comentários são em português, igual ao app.
+
+Ordem sugerida para entender o app: `App.tsx` → `src/navigation/` → `src/contexts/` → `src/hooks/useWorkout.ts` → `src/screens/WorkoutScreen.tsx` → `supabase/migrations/`.
 
 ## Rodando
 ```bash

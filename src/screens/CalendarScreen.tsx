@@ -1,3 +1,8 @@
+/**
+ * # `CalendarScreen` — tela Calendário
+ * Calendário mensal com os treinos concluídos. Cada dia treinado ganha um marcador verde e uma barra na cor do dia (ex.: Superior A). Mostra também o total do mês, o total geral e a legenda de cores.
+ */
+
 import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,10 +24,16 @@ import { OutlineButton } from '../components/Buttons';
 import { Notice } from '../components/Notice';
 import { useOnline } from '../hooks/useOnline';
 
+/**
+ * Medidas: altura da célula do dia, espessura da barra colorida e tamanho do marcador de "feito".
+ */
 const CELL_HEIGHT = 56;
 const BAR_HEIGHT = 4;
 const DONE_MARK = 8;
 
+/**
+ * Estilos da tela. `weekCell` ocupa 1/7 da largura; `grid` quebra linha (`flexWrap`) para formar semanas.
+ */
 const useStyles = makeStyles(c => ({
   container: { flex: 1, backgroundColor: c.bg },
   scroll: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.sm },
@@ -70,9 +81,13 @@ const useStyles = makeStyles(c => ({
   skelRow: { flexDirection: 'row', gap: Spacing.md },
 }));
 
+/**
+ * ## `CalendarScreen()`
+ */
 export function CalendarScreen() {
   const styles = useStyles();
   const { dayColor } = useTheme();
+  // Mês exibido: começa no mês atual e muda com as setas.
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
@@ -80,9 +95,12 @@ export function CalendarScreen() {
   const navigation = useNavigation<any>();
   const online = useOnline();
 
+  // `useCalendar` busca os dados do mês exibido. `buildLegend` agrupa os dias do programa por cor para a legenda.
   const { completionByDate, stats, programDays, loading, status, error, retry } = useCalendar(viewYear, viewMonth);
   const legend = buildLegend(programDays);
 
+  // ### `prevMonth()` e `nextMonth()`
+  // Navegam entre os meses. Na virada (janeiro ← → dezembro) ajustam também o ano.
   const prevMonth = () => {
     if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1); }
     else setViewMonth(m => m - 1);
@@ -92,6 +110,11 @@ export function CalendarScreen() {
     else setViewMonth(m => m + 1);
   };
 
+  // ### Contas do mês
+  // - `firstDay` → quantas células vazias antes do dia 1 (a grade começa no domingo).
+  // - `daysInMonth` → quantos dias o mês tem.
+  // - `completedThisMonth` → quantos dias com treino.
+  // - `isLoading` → carregando (inclusive ao trocar de mês).
   const firstDay = getFirstDayOfMonth(viewYear, viewMonth); // 0=Dom
   const daysInMonth = getDaysInMonth(viewYear, viewMonth);
   const today = todayISO();
@@ -99,6 +122,8 @@ export function CalendarScreen() {
   const isLoading = loading || status === 'loading';
   const monthName = MONTH_NAMES[viewMonth];
 
+  // ### `cells`
+  // Lista que forma a grade: `null` para cada célula vazia antes do dia 1, seguida de 1, 2, 3... até o último dia.
   // Monta a matriz de células: vazias antes do dia 1 + os dias do mês.
   const cells: (number | null)[] = [
     ...Array(firstDay).fill(null),
@@ -119,6 +144,7 @@ export function CalendarScreen() {
             <Notice tone="neutral" text="Sem internet. Histórico do último carregamento." />
           </View>
         )}
+        {/* Navegação do mês: seta anterior, nome do mês e ano, seta seguinte. */}
         {/* Mês */}
         <View style={styles.monthNav}>
           <Pressable
@@ -143,6 +169,7 @@ export function CalendarScreen() {
           </Pressable>
         </View>
 
+        {/* Totais (neste mês e no total). Enquanto carrega mostra esqueletos; em caso de erro, nada. */}
         {/* Números */}
         <View style={styles.block}>
           {stats && !isLoading ? (
@@ -158,6 +185,11 @@ export function CalendarScreen() {
           )}
         </View>
 
+        {/* Grade do calendário. Em erro, bloco de erro com "tentar de novo". Senão:
+           1. Linha com os dias da semana abreviados.
+           2. Para cada célula: monta a data `AAAA-MM-DD`, procura a conclusão, e marca se é hoje ou futuro. Cada célula tem descrição para leitores de tela ("3 de novembro, Superior A concluído").
+           3. Mês sem treinos → frase e botão para ver o treino de hoje.
+        */}
         {/* Grade */}
         {status === 'error' ? (
           <View style={styles.block}>
@@ -223,6 +255,7 @@ export function CalendarScreen() {
           </>
         )}
 
+        {/* Legenda: uma linha por cor, com os nomes dos dias que a usam. */}
         {/* Legenda */}
         {legend.length > 0 && (
           <View style={styles.legend}>

@@ -1,3 +1,8 @@
+/**
+ * # `ProfileScreen` — tela Perfil
+ * Identidade da conta, programa de treino, estado das notificações do cronômetro (Android), escolha de **aparência** (tema), opção de **descanso automático** e botão de sair.
+ */
+
 import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, Vibration, View, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,19 +21,31 @@ import {
   type ThemePreference,
 } from '../utils/theme';
 
+/**
+ * `OPTIONS`: as três escolhas de tema (Sistema, Claro, Escuro).
+ */
 const OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: 'system', label: 'Sistema' },
   { value: 'light', label: 'Claro' },
   { value: 'dark', label: 'Escuro' },
 ];
 
+/**
+ * `REST_OPTIONS`: Sim/Não para o descanso automático.
+ */
 const REST_OPTIONS: { value: 'on' | 'off'; label: string }[] = [
   { value: 'on', label: 'Sim' },
   { value: 'off', label: 'Não' },
 ];
 
+/**
+ * `SCHEME_NAME`: nome em português de cada tema, usado no texto de ajuda.
+ */
 const SCHEME_NAME = { light: 'claro', dark: 'escuro' } as const;
 
+/**
+ * Estilos da tela.
+ */
 const useStyles = makeStyles(c => ({
   container: { flex: 1, backgroundColor: c.bg },
   scroll: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.section },
@@ -63,10 +80,15 @@ const useStyles = makeStyles(c => ({
   signOutWrap: { marginTop: Spacing.section },
 }));
 
+/**
+ * ## `Row({ label, value, onPress, last, a11yHint })`
+ * Linha "rótulo — valor". Sem `onPress` é só informação; com `onPress` vira botão com seta. `last` tira a linha divisória da última linha do grupo e `a11yHint` dá uma dica a leitores de tela.
+ */
 function Row({
   label, value, onPress, last, a11yHint,
 }: { label: string; value: string; onPress?: () => void; last?: boolean; a11yHint?: string }) {
   const styles = useStyles();
+  // `content`: o miolo da linha (rótulo, valor e seta), reaproveitado nas versões com e sem toque.
   const content = (
     <>
       <Text style={styles.rowLabel}>{label}</Text>
@@ -92,15 +114,23 @@ function Row({
   );
 }
 
+/**
+ * ## `ProfileScreen()`
+ */
 export function ProfileScreen() {
   const styles = useStyles();
+  // Dados: perfil, tema, estado das notificações (`useRestNotification`) e espaço do cronômetro.
   const { profile, profileStatus, signOut } = useAuth();
   const { scheme, preference, setPreference } = useTheme();
   const rest = useRestNotification();
   const timerInsets = useTimerInsets();
+  // Estado do "descanso automático", lido do aparelho ao abrir.
   const [autoRest, setAutoRest] = useState<'on' | 'off'>('off');
+  // Efeito: lê a preferência salva uma vez, ao abrir.
   useEffect(() => { loadAutoRest().then(v => setAutoRest(v ? 'on' : 'off')); }, []);
 
+  // ### `chooseAutoRest(v)`
+  // Ignora se não mudou; senão atualiza a tela, salva no aparelho e dá uma leve vibração no Android como confirmação.
   const chooseAutoRest = (v: 'on' | 'off') => {
     if (v === autoRest) return;
     setAutoRest(v);
@@ -108,22 +138,31 @@ export function ProfileScreen() {
     if (Platform.OS === 'android') Vibration.vibrate(10);
   };
 
+  // `loadingProfile`: o perfil ainda está carregando?
   const loadingProfile = profileStatus === 'idle' || profileStatus === 'loading';
-  // Erro ao carregar o perfil: mostra "Atleta"; seletor e Sair seguem funcionando (spec §5.4).
+  // ### Dados exibidos
+  // Se o perfil falhar, mostra "Atleta"; o seletor de tema e o botão Sair continuam funcionando. Calcula nome completo, inicial do avatar e nome do programa (ou "Sem programa").
+  // Erro ao carregar o perfil: mostra "Atleta"; seletor e Sair seguem funcionando.
   const fullName = profile?.full_name?.trim() || 'Atleta';
   const initial = fullName[0]?.toUpperCase() ?? '?';
   const programName = profile?.program?.name ?? (loadingProfile ? '' : 'Sem programa');
 
+  // ### `handleSignOut()`
+  // Pergunta "Deseja realmente sair?" antes de sair da conta.
   const handleSignOut = () => {
     confirmAction('Sair da conta', 'Deseja realmente sair?', 'Sair', () => { signOut(); });
   };
 
+  // ### `choose(p)`
+  // Troca o tema (se for diferente do atual) e vibra levemente no Android.
   const choose = (p: ThemePreference) => {
     if (p === preference) return;
     setPreference(p);
     if (Platform.OS === 'android') Vibration.vibrate(10);
   };
 
+  // ### `help`
+  // Texto explicativo sob o seletor: muda conforme a escolha (automático mostra o tema atual).
   const help =
     preference === 'system'
       ? `Segue o tema do celular. Agora: ${SCHEME_NAME[scheme]}.`
@@ -131,14 +170,18 @@ export function ProfileScreen() {
         ? 'Sempre claro, mesmo com o celular no modo escuro.'
         : 'Sempre escuro, mesmo com o celular no modo claro.';
 
+  // `notif`/`showNotifRows`: as linhas de notificação só aparecem onde há suporte (Android com módulo nativo).
   const notif = rest.status;
   const showNotifRows = !!notif && notif.supported;
 
+  // ### `handleNotif()`
+  // Pede a permissão de notificação; se a pessoa negar, abre os ajustes do Android para ela ativar manualmente.
   const handleNotif = async () => {
     const ok = await rest.requestPermission();
     if (!ok) rest.openAppNotificationSettings();
   };
 
+  // ### O que a tela desenha
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScreenHeader title="Perfil" />
@@ -147,6 +190,7 @@ export function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         {timerInsets.top > 0 && <View style={{ height: timerInsets.top }} />}
+        {/* Identidade: avatar com a inicial e o nome (esqueleto enquanto carrega). */}
         <View style={styles.identity}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{loadingProfile ? ' ' : initial}</Text>
@@ -161,6 +205,7 @@ export function ProfileScreen() {
           </View>
         </View>
 
+        {/* Linhas de informação: programa e, no Android, estado dos avisos e do alarme (tocar abre a ação correspondente). */}
         <Row label="Programa" value={programName} last={!showNotifRows} />
         {showNotifRows && notif && (
           <>
@@ -180,6 +225,7 @@ export function ProfileScreen() {
           </>
         )}
 
+        {/* Seção **Aparência**: seletor de tema e o texto de ajuda. */}
         <Text style={styles.sectionTitle} accessibilityRole="header">Aparência</Text>
         <Segmented
           label="Aparência"
@@ -189,6 +235,7 @@ export function ProfileScreen() {
         />
         <Text style={styles.help} accessibilityLiveRegion="polite">{help}</Text>
 
+        {/* Seção **Treino**: liga/desliga o descanso automático. */}
         <Text style={styles.sectionTitle} accessibilityRole="header">Treino</Text>
         <Segmented
           label="Iniciar descanso ao marcar série"
@@ -198,6 +245,7 @@ export function ProfileScreen() {
         />
         <Text style={styles.help}>Iniciar descanso ao marcar série. O cronômetro começa sozinho a cada série feita.</Text>
 
+        {/* Botão de sair da conta (estilo de perigo, com confirmação). */}
         <View style={styles.signOutWrap}>
           <OutlineButton label="Sair da conta" tone="danger" onPress={handleSignOut} />
         </View>

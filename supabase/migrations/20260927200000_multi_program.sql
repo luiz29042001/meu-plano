@@ -2,41 +2,53 @@
 -- 002 — Multi-programa: cada usuário acessa apenas a sua rotina de treino
 -- ============================================================================
 
+-- O que esta migração faz (resumo): troca o modelo de "uma rotina para todos" por **programas de treino**. Cada pessoa passa a ter o seu e só enxerga os dias e exercícios dele.
 -- 1. Catálogo de programas
+-- Tabela `workout_programs`: o catálogo de programas (ex.: PPL 6x, Inferiores/Superiores 5x). `if not exists` torna a migração segura para rodar mais de uma vez.
 create table if not exists public.workout_programs (
   id          serial primary key,
   slug        text not null unique,
   name        text not null,
   description text
 );
+-- RLS ligado. A política abaixo deixa qualquer pessoa logada **ler** o catálogo (é só uma lista de nomes), mas ninguém altera.
 alter table public.workout_programs enable row level security;
 drop policy if exists read_programs on public.workout_programs;
 create policy read_programs on public.workout_programs
   for select to authenticated using (true);
 
+-- Cadastra os dois programas iniciais. `on conflict do nothing` ignora se já existirem.
 insert into public.workout_programs (slug, name, description) values
   ('ppl-6x', 'Push · Pull · Legs', '6 treinos por semana'),
   ('fem-5x', 'Inferiores · Superiores', '5 treinos por semana · até 1h')
 on conflict (slug) do nothing;
 
+-- Cada dia de treino passa a pertencer a um programa.
 -- 2. Dias de treino passam a pertencer a um programa
+-- 1. Cria a coluna `program_id` (ainda opcional, para não quebrar as linhas existentes).
 alter table public.workout_days add column if not exists program_id int references public.workout_programs(id);
+-- 2. Os dias já existentes (rotina PPL) são ligados ao programa `ppl-6x`.
 update public.workout_days
    set program_id = (select id from public.workout_programs where slug = 'ppl-6x')
  where program_id is null;
+-- 3. Agora que todas as linhas têm programa, a coluna passa a ser obrigatória (`not null`).
 alter table public.workout_days alter column program_id set not null;
+-- Índice para filtrar dias por programa rapidamente.
 create index if not exists idx_workout_days_program on public.workout_days(program_id);
 
+-- O perfil guarda o programa escolhido e se a aba de dieta está liberada.
 -- 3. Perfil guarda o programa e se a dieta está liberada
 alter table public.profiles add column if not exists program_id int references public.workout_programs(id);
 alter table public.profiles add column if not exists diet_enabled boolean not null default false;
 
+-- Quem já existia (a conta do dono do app) ganha o programa PPL e a dieta liberada.
 -- Perfis já existentes (conta do Luiz) ficam no PPL com dieta ativa
 update public.profiles
    set program_id   = (select id from public.workout_programs where slug = 'ppl-6x'),
        diet_enabled = true
  where program_id is null;
 
+-- Atualiza o gatilho de cadastro: toda conta nova recebe o programa 5x e a dieta ainda pendente. `set search_path = public` evita que um objeto de mesmo nome em outro esquema seja executado por engano (boa prática de segurança em funções `security definer`).
 -- 4. Novas contas recebem o programa 5x e dieta pendente
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer set search_path = public as $$
@@ -55,6 +67,7 @@ begin
 end;
 $$;
 
+-- Insere os 6 dias do programa 5x (inferior/superior com foco em glúteos). O `select ... from (values ...)` monta as linhas e liga cada uma ao programa `fem-5x`.
 -- 5. Rotina 5x/semana (hipertrofia, ≤ 60 min, sem bi-set)
 insert into public.workout_days (slug, label, weekday, weekday_index, color, muscles, is_rest, program_id)
 select v.slug, v.label, v.weekday, v.weekday_index, v.color, v.muscles, v.is_rest, p.id
@@ -70,6 +83,7 @@ from public.workout_programs p,
 where p.slug = 'fem-5x'
 on conflict (slug) do nothing;
 
+-- Insere os exercícios de cada dia, ligando pelo `slug` do dia. O `where not exists` evita duplicar se a migração rodar de novo.
 insert into public.exercises (workout_day_id, position, name, sets, reps, rest_seconds, tip)
 select d.id, v.pos, v.name, v.sets, v.reps, v.rest, v.tip
 from (values
@@ -112,6 +126,7 @@ from (values
 join public.workout_days d on d.slug = v.slug
 where not exists (select 1 from public.exercises e where e.workout_day_id = d.id and e.position = v.pos);
 
+-- **Isolamento (a parte de segurança):** apaga as políticas antigas de leitura (que liberavam tudo) e cria duas novas: a pessoa só vê os dias do **seu** programa e só os exercícios desses dias. O `(select auth.uid())` entre parênteses permite ao banco calcular o usuário uma só vez por consulta (mais rápido).
 -- 6. Isolamento: cada usuário só enxerga os dias e exercícios do seu programa
 drop policy if exists read_workout_days on public.workout_days;
 drop policy if exists read_exercises on public.exercises;

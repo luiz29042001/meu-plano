@@ -1,13 +1,22 @@
-// Semana de treino (spec 2.6): 7 células, segunda primeiro. Não é tocável.
+/**
+ * # `WeekStrip`
+ * Faixa da semana (segunda a domingo) com um marcador por dia. Não é tocável: só mostra o que foi feito.
+ */
 import React from 'react';
 import { Text, View } from 'react-native';
 import { makeStyles } from '../contexts/ThemeContext';
 import { Font, FontSize, Radius, Spacing } from '../utils/theme';
 
+/**
+ * Constantes: iniciais exibidas, nomes por extenso (para leitores de tela) e o tamanho do marcador.
+ */
 const INITIALS = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
 const FULL = ['segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo'];
 const MARKER = 12;
 
+/**
+ * Estilos dos marcadores: cheio verde = treinou; contorno forte = hoje; contorno fraco = dia passado sem treino; contorno claro = futuro.
+ */
 const useStyles = makeStyles(c => ({
   row: { flexDirection: 'row' },
   cell: { flex: 1, alignItems: 'center', gap: Spacing.sm },
@@ -19,6 +28,12 @@ const useStyles = makeStyles(c => ({
   future: { borderWidth: 1, borderColor: c.border },
 }));
 
+/**
+ * ## `WeekStrip({ dates, doneDates, today, goal })`
+ * 1. Monta um conjunto com as datas treinadas (consulta rápida).
+ * 2. Escreve a frase de acessibilidade, ex.: "treinou segunda, quarta e sexta. 3 de 4." (junta com vírgulas e "e" no fim).
+ * 3. Para cada data, escolhe o estilo: feito (e se for hoje, com anel), hoje, passado ou futuro.
+ */
 export function WeekStrip({
   dates, doneDates, today, goal,
 }: { dates: string[]; doneDates: string[]; today: string; goal: number }) {

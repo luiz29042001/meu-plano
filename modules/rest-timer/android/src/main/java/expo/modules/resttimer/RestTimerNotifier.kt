@@ -12,6 +12,15 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 
 /**
+ * # `RestTimerNotifier`
+ * Toda a lógica das notificações do descanso no Android.
+ *
+ * ## Como funciona
+ * 1. **Enquanto corre:** uma notificação fixa com **cronômetro regressivo do próprio sistema** (o Android anima a contagem sozinho; o JavaScript nem precisa estar rodando).
+ * 2. **No fim:** um alarme dispara o `RestTimerAlarmReceiver`, que remove a contagem e mostra "Descanso terminado" com som e vibração.
+ *
+ * > **Por que dois identificadores (IDs) diferentes?** O tempo limite da contagem é um alarme do sistema que cancela pela chave "pacote + id". Com o mesmo ID, ele podia apagar o aviso recém-publicado em 0:00 e cortar o som.
+ *
  * Notificacao do descanso (Android).
  *
  * - Enquanto corre: notificacao fixa no canal "descanso-andamento" (baixa
@@ -27,8 +36,13 @@ import androidx.core.app.NotificationManagerCompat
  *
  * O horario de termino (endsAt) e so uma COPIA do que o TimerContext guarda.
  * Este codigo nunca altera o endsAt do app (armadilha 4).
+ *
+ * ## `RestTimerNotifier`
+ * `object` = existe uma única instância (padrão *singleton*), compartilhada pelo módulo e pelo receptor do alarme.
  */
 internal object RestTimerNotifier {
+  // ## Constantes
+  // Identificadores das notificações (contagem e aviso de fim), códigos dos pedidos pendentes, nomes dos canais e nomes dos dados trocados com o alarme.
   /** Contagem regressiva (canal "descanso-andamento"). */
   const val RUNNING_ID = 4207
   /** Aviso "Descanso terminado" (canal "descanso-fim"). Nunca reutilizar RUNNING_ID. */
@@ -43,27 +57,40 @@ internal object RestTimerNotifier {
   const val EXTRA_TITLE = "expo.modules.resttimer.DONE_TITLE"
   const val EXTRA_BODY = "expo.modules.resttimer.DONE_BODY"
 
+  // Armazenamento local pequeno que guarda o horário de término do descanso atual. Serve para ignorar alarmes de um descanso já cancelado ou substituído.
   private const val PREFS = "expo.modules.resttimer"
   private const val PREF_ENDS_AT = "endsAt"
 
+  // `ACCENT`: cor verde fixa das notificações (a mesma de `NotificationColors.accent` no app).
   /** Cor de destaque fixa (NotificationColors.accent em src/utils/theme.ts). */
   private val ACCENT = Color.parseColor("#1A9348")
 
+  // `VIBRATION`: padrão de vibração igual ao do app (pausas e pulsos).
   /** Mesmo padrao de vibracao do app (TimerContext.alertFinished). */
   private val VIBRATION = longArrayOf(0, 400, 200, 400, 200, 600)
 
-  /** Some sozinha 10 min depois de terminar (spec 13.3). */
+  // `DONE_TIMEOUT_MS`: o aviso de fim some sozinho depois de 10 minutos.
+  /** Some sozinha 10 min depois de terminar. */
   private const val DONE_TIMEOUT_MS = 10 * 60 * 1000L
 
+  // ### `areNotificationsEnabled(context)`
+  // As notificações do app estão permitidas no sistema?
   fun areNotificationsEnabled(context: Context): Boolean =
     NotificationManagerCompat.from(context).areNotificationsEnabled()
 
+  // ### `canScheduleExactAlarms(context)`
+  // Antes do Android 12 (versão "S") alarme exato sempre é permitido; a partir dele, pergunta ao `AlarmManager`.
   fun canScheduleExactAlarms(context: Context): Boolean {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
     val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     return am.canScheduleExactAlarms()
   }
 
+  // ### `isDoneChannelEnabled(context)`
+  // O canal "Fim do descanso" consegue alertar com som?
+  // - Antes do Android 8 não existem canais → `true`.
+  // - Se o canal ainda não existe, será criado com importância alta → `true`.
+  // - Se existe, vale se a pessoa não o desligou nem o deixou "silencioso".
   /**
    * true se o canal "descanso-fim" consegue alertar com som: existe (ou ainda
    * sera criado com importancia alta) e o usuario nao o desligou nem o baixou
@@ -77,6 +104,10 @@ internal object RestTimerNotifier {
     return channel.importance >= NotificationManager.IMPORTANCE_DEFAULT
   }
 
+  // ### `ensureChannels(context)`
+  // Cria os dois canais de notificação se ainda não existirem (Android 8+):
+  // 1. **Cronômetro de descanso** — importância baixa, sem som nem vibração (só mostra a contagem).
+  // 2. **Fim do descanso** — importância alta, com som e vibração.
   private fun ensureChannels(context: Context) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
     val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -106,6 +137,8 @@ internal object RestTimerNotifier {
     }
   }
 
+  // ### `contentIntent(context)`
+  // Ação ao tocar na notificação: abre o app, como tocar no ícone.
   /** Tocar na notificacao: traz o app de volta (como tocar no icone). */
   private fun contentIntent(context: Context): PendingIntent? {
     val launch = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: return null
@@ -116,6 +149,8 @@ internal object RestTimerNotifier {
     )
   }
 
+  // ### `alarmIntent(context, endsAt, doneTitle, doneBody)`
+  // Monta o "pedido pendente" que o alarme dispara, levando junto o horário e os textos do aviso. Para **cancelar** um alarme, usa-se o mesmo pedido com valores vazios (a identificação é pelo código, não pelo conteúdo).
   private fun alarmIntent(context: Context, endsAt: Long?, doneTitle: String?, doneBody: String?): PendingIntent {
     val intent = Intent(context, RestTimerAlarmReceiver::class.java)
     if (endsAt != null) intent.putExtra(EXTRA_ENDS_AT, endsAt)
@@ -127,6 +162,8 @@ internal object RestTimerNotifier {
     )
   }
 
+  // ### `notify(context, id, notification)`
+  // Publica uma notificação. Sem a permissão de notificações, o Android lança `SecurityException`; ela é ignorada e o app segue com o alerta interno.
   private fun notify(context: Context, id: Int, notification: android.app.Notification) {
     try {
       NotificationManagerCompat.from(context).notify(id, notification)
@@ -135,9 +172,19 @@ internal object RestTimerNotifier {
     }
   }
 
+  // ### `start(...)`
+  // Mostra a contagem e agenda o aviso do fim. Chamar de novo **substitui** tudo (usado ao retomar e no "+30 s"). Devolve `true` só se o aviso do fim é confiável.
+  //
+  // 1. Horário no passado → nada a fazer (`false`).
+  // 2. Notificações bloqueadas → cancela o que houver e devolve `false`.
+  // 3. Garante os canais e remove um "Descanso terminado" antigo.
+  // 4. Guarda o horário de término atual.
+  // 5. Monta a notificação da contagem: fixa, silenciosa, com cronômetro regressivo do sistema e tempo limite igual ao término (evita mostrar contagem negativa se o aviso atrasar).
+  // 6. Cancela o alarme anterior e agenda o novo: **exato** se permitido; senão aproximado (o Android pode atrasar).
+  // 7. Devolve `true` apenas se o alarme é exato **e** o canal de fim está ligado.
   /**
    * Mostra a contagem e agenda o aviso do fim. Chamar de novo substitui tudo
-   * (usado ao retomar e no "+15 s").
+   * (usado ao retomar e no "+30 s").
    * @return true se o aviso do fim ficou agendado com alarme EXATO, as
    *         notificacoes do app estao permitidas E o canal "descanso-fim" esta
    *         ligado com som (o app entao nao vibra por conta propria). Em
@@ -180,7 +227,7 @@ internal object RestTimerNotifier {
       .setUsesChronometer(true)
       .setChronometerCountDown(true)
       // Garantia contra a contagem negativa ("-0:03") se o aviso do fim atrasar.
-      // So afeta RUNNING_ID; o aviso do fim usa DONE_ID e nao e tocado (I4).
+      // So afeta RUNNING_ID; o aviso do fim usa DONE_ID e nao e tocado.
       .setTimeoutAfter(endsAt - now)
       .setContentIntent(contentIntent(context))
       .build()
@@ -203,10 +250,12 @@ internal object RestTimerNotifier {
       false
     }
     // Canal do fim desligado/silencioso: o alarme continua agendado (inofensivo),
-    // mas o app nao pode contar com ele para avisar (S1).
+    // mas o app nao pode contar com ele para avisar.
     return exact && isDoneChannelEnabled(context)
   }
 
+  // ### `cancel(context)`
+  // Esquece o horário guardado, cancela o alarme pendente e remove as duas notificações (contagem e "terminado").
   /** Cancela o alarme pendente e remove as duas notificacoes (contagem e "terminado"). */
   fun cancel(context: Context) {
     context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -218,13 +267,19 @@ internal object RestTimerNotifier {
     nmc.cancel(DONE_ID)
   }
 
+  // ### `showDone(context, endsAt, title, body)`
+  // Mostra "Descanso terminado".
+  //
+  // 1. Se o horário do alarme não é o do descanso atual (foi cancelado ou trocado), ignora.
+  // 2. Remove a contagem primeiro, **depois** publica o aviso com outro ID.
+  // 3. O aviso tem som padrão, vibração, fecha ao tocar e some sozinho em 10 min.
   /** Chamado pelo receptor do alarme. Ignora alarmes de um descanso ja cancelado/substituido. */
   fun showDone(context: Context, endsAt: Long, title: String, body: String) {
     val current = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getLong(PREF_ENDS_AT, -1L)
     if (current != endsAt) return
     ensureChannels(context)
     // Primeiro tira a contagem (RUNNING_ID); depois publica o aviso com outro id.
-    // Assim o timeout da contagem nao tem como apagar o aviso (I4).
+    // Assim o timeout da contagem nao tem como apagar o aviso.
     NotificationManagerCompat.from(context).cancel(RUNNING_ID)
     val done = NotificationCompat.Builder(context, CHANNEL_DONE)
       .setSmallIcon(R.drawable.ic_stat_descanso)

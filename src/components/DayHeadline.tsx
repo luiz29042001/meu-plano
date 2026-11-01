@@ -1,13 +1,21 @@
-// Manchete do dia (spec §4): faixa de 6px na cor do dia + nome em Barlow caixa alta.
-// A cor chega JÁ traduzida (dayColor do useTheme); aqui não se mexe em cor.
+/**
+ * # `DayHeadline`
+ * Manchete do dia: faixa colorida de 6 px e o nome do dia em letras grandes. A cor chega **já traduzida** para o tema.
+ */
 import React from 'react';
 import { Text, View } from 'react-native';
 import { makeStyles } from '../contexts/ThemeContext';
 import { Font, FontSize, Spacing, Tracking, numberLineHeight } from '../utils/theme';
 
+/**
+ * Nomes com mais de 10 letras encolhem para 78% do tamanho, para caber em uma linha.
+ */
 const LONG_LABEL = 10; // acima disso o nome cai de tamanho para caber
 const LONG_RATIO = 0.78; // 72 -> 56
 
+/**
+ * Estilos da manchete.
+ */
 const useStyles = makeStyles(c => ({
   wrap: { flexDirection: 'row', gap: Spacing.lg },
   stripe: { width: 6, alignSelf: 'stretch' },
@@ -30,6 +38,10 @@ const useStyles = makeStyles(c => ({
   },
 }));
 
+/**
+ * ## `Tag({ label })`
+ * Etiqueta pequena de texto invertido (ex.: "HOJE").
+ */
 export function Tag({ label }: { label: string }) {
   const styles = useStyles();
   return (
@@ -39,6 +51,12 @@ export function Tag({ label }: { label: string }) {
   );
 }
 
+/**
+ * ## `DayHeadline({ label, color, muscles, kicker, tag, size, right })`
+ * 1. Escolhe o tamanho-base (`hero` 72 ou `display` 64).
+ * 2. Reduz se o nome for longo.
+ * 3. Desenha: faixa de cor, linha superior (texto auxiliar e etiqueta), título (uma linha) e os músculos trabalhados.
+ */
 export function DayHeadline({
   label, color, muscles, kicker, tag, size = 'hero', right,
 }: {

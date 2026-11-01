@@ -1,9 +1,13 @@
-// Cronômetro de descanso, flutuante sobre todas as telas (spec §6.3 e §12).
-// - Duas posições fixas: topo (padrão, compacto, abaixo do cabeçalho) ou base (completo,
-//   acima do dock do treino e da barra inferior).
-// - Mover: segurar ~350 ms e arrastar na vertical, ou o botão ↑/↓ (alternativa sem gesto).
-// - ARMADILHA 4: aqui só se LÊ o estado. O tempo vem de `endsAt` no TimerContext;
-//   mover o painel nunca toca nele. A cor do dia é traduzida na renderização.
+/**
+ * # `FloatingTimer` — cronômetro flutuante
+ * Painel do cronômetro de descanso que flutua **sobre todas as telas**.
+ *
+ * - Duas posições fixas: **topo** (compacto, abaixo do cabeçalho) ou **base** (completo, acima do dock e da barra inferior).
+ * - Para mover: segurar ~350 ms e arrastar na vertical, ou usar o botão ↑/↓ (alternativa sem gesto, por acessibilidade).
+ * - **Armadilha 4:** aqui o estado só é *lido*. O tempo vem do `endsAt` no `TimerContext`; mover o painel nunca mexe nele.
+ *
+ * > Animações usam o *Reanimated*, que roda na thread de interface (fluida mesmo com a thread principal ocupada). Funções marcadas `'worklet'` rodam lá.
+ */
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   AccessibilityInfo, Platform, Pressable, Text, Vibration, View, type LayoutChangeEvent,
@@ -23,6 +27,15 @@ import { HEADER_HEIGHT } from './ScreenHeader';
 import { OutlineButton, LinkButton } from './Buttons';
 import { Font, FontSize, Layout, LineHeight, Radius, Spacing, Touch, Tracking, numberLineHeight } from '../utils/theme';
 
+/**
+ * ## Constantes
+ * - `PRESETS` → durações rápidas: 30, 60, 90 e 120 s.
+ * - `LONG_PRESS_MS` → segurar 350 ms antes de arrastar.
+ * - `FLING_VELOCITY` → arrasto rápido (> 0,5 px/ms) vale pela direção.
+ * - `SNAP_MS` → duração do encaixe na posição final.
+ * - `PICK_SCALE` → o painel "cresce" 2% ao ser pego.
+ * - `EST_HEIGHT` → alturas estimadas de cada posição, usadas só até a primeira medição real.
+ */
 const PRESETS = [30, 60, 90, 120];
 const LONG_PRESS_MS = 350;
 const FLING_VELOCITY = 500; // px/s (= 0,5 px/ms)
@@ -31,11 +44,20 @@ const PICK_SCALE = 1.02;
 // Alturas aproximadas de cada posição, usadas só até a primeira medição real.
 const EST_HEIGHT: Record<TimerPosition, number> = { bottom: 225, top: Layout.TIMER_TOP_HEIGHT };
 
+/**
+ * ## `Geo`
+ * Medidas usadas pelo gesto: altura da área (`H`), do painel (`h`), posição atual, início da zona de cima, alturas de cada zona e se há "reduzir movimento".
+ */
 type Geo = {
   H: number; h: number; pos: TimerPosition; topAnchor: number; hTop: number; hBottom: number; reduce: boolean;
 };
 
-/** Zona (topo/base) mais próxima do centro do painel. Roda na thread de UI. */
+/**
+ * ## `nearestZone(center, g)`
+ * Decide qual zona (topo ou base) está mais perto do centro do painel enquanto se arrasta. Roda na thread de interface (`'worklet'`).
+ *
+  * Zona (topo/base) mais próxima do centro do painel. Roda na thread de UI.
+  */
 function nearestZone(center: number, g: Geo): TimerPosition {
   'worklet';
   const topCenter = g.topAnchor + g.hTop / 2;
@@ -43,10 +65,16 @@ function nearestZone(center: number, g: Geo): TimerPosition {
   return Math.abs(center - topCenter) < Math.abs(center - bottomCenter) ? 'top' : 'bottom';
 }
 
+/**
+ * `webOnly`: estilos extras só na web — impede selecionar texto e o gesto de rolagem do navegador durante o arrasto.
+ */
 const webOnly: any = Platform.OS === 'web'
   ? { userSelect: 'none', WebkitTouchCallout: 'none', touchAction: 'none' }
   : null;
 
+/**
+ * Estilos do painel (compacto, completo, zonas de soltar, botões de predefinição).
+ */
 const useStyles = makeStyles(c => ({
   layer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 },
   panel: {
@@ -118,7 +146,12 @@ const useStyles = makeStyles(c => ({
   },
 }));
 
+/**
+ * ## `FloatingTimer()`
+ */
 export function FloatingTimer() {
+  // ### Dados
+  // Estado e ações do cronômetro, posição/altura do layout, tema, margens seguras do aparelho, estado das notificações, "reduzir movimento" e teclado.
   const timerState = useTimerState();
   const { closeTimer, toggleTimer, setPreset, addTime } = useTimerActions();
   const { position, setPosition, setPanelHeight, bottomOffset } = useTimerLayout();
@@ -128,29 +161,42 @@ export function FloatingTimer() {
   const rest = useRestNotification();
   const reduceMotion = useReducedMotion();
   const keyboard = useKeyboardVisible();
+  // `bottomAnchor`: distância da base da tela até o painel de baixo — acima da barra inferior e do dock. Com o teclado aberto, vai para 0.
   // Base do painel de baixo: acima da barra inferior (+ dock do treino). Sem teclado.
   const bottomAnchor = keyboard ? 0 : Layout.BAR_HEIGHT + insets.bottom + bottomOffset;
 
+  // Estados: altura da camada, se está arrastando e qual zona está realçada.
   const [layerH, setLayerH] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [activeZone, setActiveZone] = useState<TimerPosition | null>(null);
+  // `heights`: altura medida de cada posição (guardada sem redesenhar a tela).
   const heights = useRef<Record<TimerPosition, number>>({ ...EST_HEIGHT });
 
+  // ### Valores animados (thread de interface)
+  // - `translateY` → deslocamento do arraste.
+  // - `scale` → escala ao pegar o painel.
+  // - `pulse` → opacidade do pulso ao terminar.
+  // - `progress` → fração da barra de progresso.
+  // - `lastZone` → última zona realçada (evita vibrar à toa).
   const translateY = useSharedValue(0);
   const scale = useSharedValue(1);
   const pulse = useSharedValue(1);
   const progress = useSharedValue(1);
   const lastZone = useSharedValue<TimerPosition | ''>('');
+  // `topAnchor`: onde o painel de cima começa (margem do aparelho + altura do cabeçalho).
   const topAnchor = insets.top + HEADER_HEIGHT;
+  // `geo`: medidas compartilhadas com o gesto.
   const geo = useSharedValue<Geo>({
     H: 0, h: EST_HEIGHT[position], pos: position, topAnchor,
     hTop: EST_HEIGHT.top, hBottom: EST_HEIGHT.bottom, reduce: false,
   });
 
+  // Campos do estado. `finished` = chegou a zero e parou; `compact` = está no topo.
   const { visible, seconds, total, running, label, color } = timerState;
   const finished = seconds === 0 && !running;
   const compact = position === 'top';
 
+  // Efeito: mantém `geo` atualizado com as medidas mais recentes para o gesto.
   // Geometria para o gesto (thread de UI).
   useEffect(() => {
     geo.value = {
@@ -159,6 +205,7 @@ export function FloatingTimer() {
     };
   }, [geo, layerH, bottomAnchor, position, topAnchor, reduceMotion, visible]);
 
+  // Efeito (antes de pintar): ao trocar de posição o painel já está na nova âncora, então zera o deslocamento do arraste e os realces.
   // Mudou de posição: o painel já está na nova âncora, zera o deslocamento do arraste.
   useLayoutEffect(() => {
     translateY.value = 0;
@@ -167,6 +214,10 @@ export function FloatingTimer() {
     setActiveZone(null);
   }, [position, translateY, scale]);
 
+  // Efeito: barra de progresso.
+  // - Rodando: anima linearmente até o próximo segundo (movimento contínuo).
+  // - Parado: vai direto para o valor atual.
+  // - Com "reduzir movimento": sem animação.
   // Linha de progresso: encolhe de forma contínua (1 s linear por tick enquanto corre).
   useEffect(() => {
     const pct = total > 0 ? seconds / total : 0;
@@ -178,6 +229,7 @@ export function FloatingTimer() {
     }
   }, [seconds, total, running, reduceMotion, progress]);
 
+  // Efeito: ao terminar, um pulso único de 300 ms (a opacidade desce e volta).
   // Pulso único ao terminar (300 ms).
   useEffect(() => {
     if (finished && !reduceMotion) {
@@ -185,26 +237,35 @@ export function FloatingTimer() {
     }
   }, [finished, reduceMotion, pulse]);
 
+  // `announce(p)`: anuncia por voz a nova posição (acessibilidade).
   const announce = useCallback((p: TimerPosition) => {
     AccessibilityInfo.announceForAccessibility(p === 'top' ? 'Cronômetro no topo' : 'Cronômetro na base');
   }, []);
 
+  // `moveTo(p)`: troca a posição (se for outra), salva e anuncia.
   const moveTo = useCallback((p: TimerPosition) => {
     if (p === position) return;
     setPosition(p);
     announce(p);
   }, [position, setPosition, announce]);
 
+  // ### Retornos do gesto (rodam na thread principal)
+  // O gesto roda na thread de interface e chama estas funções via `runOnJS`.
   // ─── Callbacks chamados pelo gesto (JS) ────────────────────────────────────
+  // `onPick(from)`: o painel foi "pego" — liga o modo de arraste, realça a zona e vibra (Android).
   const onPick = useCallback((from: TimerPosition) => {
     setDragging(true);
     setActiveZone(from);
     if (Platform.OS === 'android') Vibration.vibrate(15);
   }, []);
+  // `onZone(z)`: o painel passou para outra zona — realça e vibra levemente.
   const onZone = useCallback((z: TimerPosition) => {
     setActiveZone(z);
     if (Platform.OS === 'android') Vibration.vibrate(10);
   }, []);
+  // `onDropped(target)`: o painel foi solto.
+  // - Na mesma zona: só limpa os realces.
+  // - Em outra: salva a nova posição e anuncia.
   const onDropped = useCallback((target: TimerPosition) => {
     if (Platform.OS === 'android') Vibration.vibrate(10);
     if (target === position) {
@@ -217,11 +278,18 @@ export function FloatingTimer() {
     setPosition(target);
     announce(target);
   }, [position, setPosition, announce, scale]);
+  // `onCancelled()`: arrasto cancelado — limpa os estados.
   const onCancelled = useCallback(() => {
     setDragging(false);
     setActiveZone(null);
   }, []);
 
+  // ### `pan` — o gesto de arrastar
+  // 1. `activateAfterLongPress(350)` → só começa depois de segurar.
+  // 2. `onStart` → cresce o painel, guarda a zona inicial e avisa `onPick`.
+  // 3. `onUpdate` → segue o dedo; calcula a zona mais próxima e avisa `onZone` quando muda.
+  // 4. `onEnd` → decide a zona de destino (vale a direção se foi um arremesso rápido), anima o encaixe e chama `onDropped`. Com "reduzir movimento" encaixa sem animar.
+  // 5. `onFinalize` → se foi cancelado, volta ao lugar.
   const pan = React.useMemo(() => Gesture.Pan()
     .activateAfterLongPress(LONG_PRESS_MS)
     .onStart(() => {
@@ -265,6 +333,8 @@ export function FloatingTimer() {
       }
     }), [geo, translateY, scale, lastZone, onPick, onZone, onDropped, onCancelled]);
 
+  // ### Estilos animados
+  // `animatedStyle` (deslocamento e escala), `progressStyle` (largura da barra) e `pulseStyle` (opacidade do número).
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }, { scale: scale.value }],
   }));
@@ -273,6 +343,7 @@ export function FloatingTimer() {
   }));
   const pulseStyle = useAnimatedStyle(() => ({ opacity: pulse.value }));
 
+  // `onPanelLayout`: mede o painel, guarda a altura da posição atual e informa o contexto para as telas reservarem espaço.
   const onPanelLayout = (e: LayoutChangeEvent) => {
     const h = Math.round(e.nativeEvent.layout.height);
     heights.current[position] = h;
@@ -280,19 +351,28 @@ export function FloatingTimer() {
     geo.value = { ...geo.value, h, hTop: heights.current.top, hBottom: heights.current.bottom };
   };
 
+  // Cronômetro fechado → não desenha nada.
   if (!visible) return null;
 
+  // ### Valores de exibição
+  // - `accent` → cor da barra: verde ao terminar; senão a cor do dia.
+  // - `timeStr` e `timeA11y` → "1:30" para a tela e "1 minuto e 30 segundos" para leitores de tela.
+  // - `moveLabel`/`moveGlyph`/`doMove` → botão de mover (↓ no topo, ↑ na base).
+  // - `mainLabel`/`onMain` → botão principal: "Pausar", "Continuar" ou "De novo". Ao terminar, o primeiro toque volta ao total e o segundo inicia.
+  // - `title` → "Descanso" ou "Descanso terminado".
   const accent = finished ? colors.green : dayColor(color);
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   const timeStr = `${mins}:${String(secs).padStart(2, '0')}`;
-  const timeA11y = `${mins} minutos e ${secs} segundos`;
+  const timeA11y = `${mins} ${mins === 1 ? 'minuto' : 'minutos'} e ${secs} ${secs === 1 ? 'segundo' : 'segundos'}`;
 
   const moveLabel = compact ? 'Mover cronômetro para baixo' : 'Mover cronômetro para cima';
   const moveGlyph = compact ? '↓' : '↑';
+  // `doMove()`: leva o painel para a outra posição (do topo para a base e vice-versa).
   const doMove = () => moveTo(compact ? 'bottom' : 'top');
 
   const mainLabel = finished ? 'De novo' : running ? 'Pausar' : 'Continuar';
+  // `onMain()`: ação do botão principal (pausar / continuar / de novo).
   const onMain = () => {
     // Terminado: o 1º toque volta ao total (parado), o 2º inicia de novo.
     if (finished) { toggleTimer(); toggleTimer(); return; }
@@ -301,6 +381,7 @@ export function FloatingTimer() {
 
   const title = finished ? 'Descanso terminado' : 'Descanso';
 
+  // `notice`: aviso único para permitir alarmes (aparece uma vez; Permitir abre os ajustes, Dispensar esconde).
   const notice = rest.exactAlarmNoticePending ? (
     <View style={styles.notice}>
       <Text style={styles.noticeText}>
@@ -314,6 +395,7 @@ export function FloatingTimer() {
     </View>
   ) : null;
 
+  // `labelRow`: título e nome do exercício.
   const labelRow = (
     <View style={styles.labelRow}>
       <Text style={[styles.label, finished && styles.labelDone]}>{title}</Text>
@@ -321,6 +403,7 @@ export function FloatingTimer() {
     </View>
   );
 
+  // `moveButton`: botão ↑/↓ de mover (alternativa ao arrastar).
   const moveButton = (
     <Pressable
       onPress={doMove}
@@ -332,6 +415,7 @@ export function FloatingTimer() {
     </Pressable>
   );
 
+  // `timeText`: o número grande do tempo, com papel de "timer" para leitores de tela.
   const timeText = (
     <Reanimated.Text
       style={[styles.time, compact && styles.timeCompact, pulseStyle]}
@@ -344,12 +428,14 @@ export function FloatingTimer() {
     </Reanimated.Text>
   );
 
+  // ### O que o painel desenha
   return (
     <View
       style={styles.layer}
       pointerEvents="box-none"
       onLayout={e => setLayerH(Math.round(e.nativeEvent.layout.height))}
     >
+      {/* Durante o arraste: duas faixas-guia "Soltar em cima" e "Soltar embaixo"; a mais próxima fica realçada. */}
       {dragging && layerH > 0 && (
         <>
           <View
@@ -367,6 +453,7 @@ export function FloatingTimer() {
         </>
       )}
 
+      {/* Painel arrastável. A posição (topo/base) define a âncora; ao pegar, ele "levanta" visualmente. */}
       <GestureDetector gesture={pan}>
         <Reanimated.View
           onLayout={onPanelLayout}
@@ -381,6 +468,7 @@ export function FloatingTimer() {
             animatedStyle,
           ]}
         >
+          {/* Linha de progresso e a "alça" (indica que dá para arrastar). */}
           {/* Linha de progresso na borda que encosta no conteúdo */}
           <Reanimated.View
             pointerEvents="none"
@@ -399,6 +487,7 @@ export function FloatingTimer() {
           {notice}
           {labelRow}
 
+          {/* Dois leiautes: **compacto** (topo) com tudo em uma linha — tempo, +30 s, pausar, fechar, mover — e **completo** (base) com número grande, ações, predefinições (30/60/90/120 s), mover e fechar. */}
           {compact ? (
             <View style={styles.compactRow}>
               {timeText}

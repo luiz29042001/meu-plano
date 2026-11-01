@@ -1,7 +1,20 @@
+-- ==============================================================================
+-- MIGRAÇÃO 1/6 — SCHEMA BASE (17/07/2026)
+-- Cria o banco inicial: perfis, dias de treino, exercícios, conclusões, marcações,
+-- estatísticas e os gatilhos automáticos.
+--
+-- Convenções deste arquivo:
+-- - RLS (Row Level Security): cada tabela com dado de usuário só deixa a pessoa
+--   ver e alterar as PRÓPRIAS linhas (`auth.uid() = user_id`).
+-- - Esta migração é a BASE; as seguintes ajustam o banco (multi-programa, dieta,
+--   anotações, segurança...). O estado real é a soma de todas.
+-- ==============================================================================
 -- ─── EXTENSIONS ──────────────────────────────────────────────────────────────
+-- Extensão que gera identificadores únicos (UUID) usados como chave das tabelas.
 create extension if not exists "uuid-ossp";
 
 -- ─── PROFILES ─────────────────────────────────────────────────────────────────
+-- Tabela `profiles`: um registro por pessoa (a chave é o mesmo `id` do login, em `auth.users`). `on delete cascade` apaga o perfil junto com a conta. `diet_variant` só aceita 'A' ou 'B' (`check`).
 create table public.profiles (
   id            uuid primary key references auth.users(id) on delete cascade,
   email         text,
@@ -15,8 +28,10 @@ create table public.profiles (
   updated_at    timestamptz  default now()
 );
 
+-- Liga o RLS: sem uma política (policy) que permita, ninguém acessa a tabela.
 alter table public.profiles enable row level security;
 
+-- Políticas do perfil: cada pessoa só enxerga (select), cria (insert) e altera (update) o PRÓPRIO perfil.
 create policy "Users can view own profile"
   on public.profiles for select using (auth.uid() = id);
 create policy "Users can insert own profile"
@@ -25,6 +40,7 @@ create policy "Users can update own profile"
   on public.profiles for update using (auth.uid() = id);
 
 -- ─── WORKOUT DAYS (seed data, shared) ────────────────────────────────────────
+-- Tabela `workout_days`: os dias da rotina (ex.: PUSH A). `slug` é o identificador de texto único; `weekday_index` é a ordem na sequência. Dados de "semente" (seed), iguais para todos.
 create table public.workout_days (
   id         serial primary key,
   slug       text not null unique,   -- 'push-a', 'pull-a', etc.
@@ -37,6 +53,7 @@ create table public.workout_days (
 );
 
 -- ─── EXERCISES (seed data, shared) ───────────────────────────────────────────
+-- Tabela `exercises`: exercícios de cada dia, com posição, séries, repetições, descanso e dica. Um dia tem muitos exercícios (`workout_day_id`).
 create table public.exercises (
   id             serial primary key,
   workout_day_id int not null references public.workout_days(id),
@@ -48,9 +65,11 @@ create table public.exercises (
   tip            text
 );
 
+-- Índice: acelera a busca dos exercícios de um dia.
 create index idx_exercises_workout_day on public.exercises(workout_day_id);
 
 -- ─── WORKOUT COMPLETIONS ──────────────────────────────────────────────────────
+-- Tabela `workout_completions`: registra que a pessoa concluiu um treino numa data. `unique(user_id, completed_date)` garante **um treino por dia por pessoa**.
 create table public.workout_completions (
   id             uuid primary key default uuid_generate_v4(),
   user_id        uuid not null references public.profiles(id) on delete cascade,
@@ -62,11 +81,14 @@ create table public.workout_completions (
   unique(user_id, completed_date)   -- one workout per day
 );
 
+-- Índice: acelera a busca por pessoa e data (mais recentes primeiro), usada no calendário.
 create index idx_completions_user_date on public.workout_completions(user_id, completed_date desc);
 
 
+-- RLS ligado nas conclusões.
 alter table public.workout_completions enable row level security;
 
+-- Políticas das conclusões: ver, criar, apagar e atualizar somente as próprias.
 create policy "Users see own completions"
   on public.workout_completions for select using (auth.uid() = user_id);
 create policy "Users insert own completions"
@@ -77,6 +99,7 @@ create policy "Users update own completions"
   on public.workout_completions for update using (auth.uid() = user_id);
 
 -- ─── EXERCISE CHECKS (per session) ───────────────────────────────────────────
+-- Tabela `exercise_checks`: "exercício feito" em uma data. `unique(user_id, exercise_id, check_date)` impede marcar o mesmo exercício duas vezes no dia.
 create table public.exercise_checks (
   id             uuid primary key default uuid_generate_v4(),
   user_id        uuid not null references public.profiles(id) on delete cascade,
@@ -87,10 +110,13 @@ create table public.exercise_checks (
   unique(user_id, exercise_id, check_date)
 );
 
+-- Índice para buscar as marcações de uma pessoa em uma data.
 create index idx_checks_user_date on public.exercise_checks(user_id, check_date);
 
+-- RLS ligado nas marcações.
 alter table public.exercise_checks enable row level security;
 
+-- Políticas das marcações: ver, criar, atualizar e apagar as próprias.
 create policy "Users see own checks"
   on public.exercise_checks for select using (auth.uid() = user_id);
 create policy "Users upsert own checks"
@@ -101,6 +127,7 @@ create policy "Users delete own checks"
   on public.exercise_checks for delete using (auth.uid() = user_id);
 
 -- ─── USER STATS (denormalized for dashboard) ─────────────────────────────────
+-- Tabela `user_stats`: totais da pessoa (treinos, sequências), para a tela de calendário/Início ler rápido sem recalcular.
 create table public.user_stats (
   id              uuid primary key default uuid_generate_v4(),
   user_id         uuid not null references public.profiles(id) on delete cascade unique,
@@ -111,8 +138,10 @@ create table public.user_stats (
   updated_at      timestamptz default now()
 );
 
+-- RLS ligado nas estatísticas.
 alter table public.user_stats enable row level security;
 
+-- Políticas das estatísticas (depois endurecidas na migração de segurança: só o gatilho escreve).
 create policy "Users see own stats"
   on public.user_stats for select using (auth.uid() = user_id);
 create policy "Users upsert own stats"
@@ -121,6 +150,7 @@ create policy "Users update own stats"
   on public.user_stats for update using (auth.uid() = user_id);
 
 -- ─── FUNCTION: update stats after completion ──────────────────────────────────
+-- Função `refresh_user_stats(p_user_id)`: recalcula as estatísticas de uma pessoa. `security definer` = roda com os poderes do dono da função (necessário para o gatilho escrever na tabela).
 create or replace function public.refresh_user_stats(p_user_id uuid)
 returns void language plpgsql security definer as $$
 declare
@@ -132,12 +162,14 @@ declare
   v_prev date;
   v_row record;
 begin
+  -- 1. Conta os treinos e acha a data do último.
   select count(*), max(completed_date)
   into v_total, v_last
   from public.workout_completions
   where user_id = p_user_id;
 
   -- Calculate streak
+  -- 2. Calcula a sequência atual: percorre as conclusões da mais recente para a mais antiga; a sequência só existe se o último treino foi hoje ou ontem, e continua enquanto o intervalo entre treinos for de até 2 dias.
   v_prev := null;
   for v_row in
     select completed_date
@@ -159,6 +191,7 @@ begin
   end loop;
 
   -- Longest streak
+  -- 3. Calcula a maior sequência histórica agrupando datas consecutivas (técnica: data menos número da linha forma o mesmo "grupo" para dias seguidos).
   select coalesce(max(streak_len), 0) into v_longest from (
     select count(*) as streak_len
     from (
@@ -169,6 +202,7 @@ begin
     ) t group by grp
   ) s;
 
+  -- 4. Grava (ou atualiza, via `on conflict`) a linha de estatísticas.
   insert into public.user_stats(user_id, total_workouts, current_streak, longest_streak, last_workout_date, updated_at)
   values (p_user_id, v_total, v_current, v_longest, v_last, now())
   on conflict(user_id) do update set
@@ -181,6 +215,7 @@ end;
 $$;
 
 -- ─── TRIGGER: refresh stats on completion change ──────────────────────────────
+-- Função do gatilho: chama o recálculo para a pessoa afetada pela mudança.
 create or replace function public.trigger_refresh_stats()
 returns trigger language plpgsql security definer as $$
 begin
@@ -189,11 +224,13 @@ begin
 end;
 $$;
 
+-- Gatilho (trigger): a cada inserção, atualização ou exclusão de conclusão, recalcula as estatísticas automaticamente. Por isso o app nunca escreve em `user_stats`.
 create trigger on_completion_change
   after insert or update or delete on public.workout_completions
   for each row execute function public.trigger_refresh_stats();
 
 -- ─── TRIGGER: auto-create profile on signup ───────────────────────────────────
+-- Função do cadastro: quando alguém cria conta, gera o perfil (copiando nome e foto do Google) e a linha de estatísticas.
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer as $$
 begin
@@ -209,11 +246,13 @@ begin
 end;
 $$;
 
+-- Gatilho que dispara a função acima a cada novo usuário em `auth.users`.
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
 -- ─── SEED: workout days ───────────────────────────────────────────────────────
+-- Dados iniciais: os 7 dias da primeira rotina (PUSH/PULL/LEGS A e B + descanso), com cor e músculos.
 insert into public.workout_days(slug, label, weekday, weekday_index, color, muscles, is_rest) values
   ('push-a', 'PUSH A',    'Segunda', 0, '#E8572A', 'Peito · Ombro · Tríceps',          false),
   ('pull-a', 'PULL A',    'Terça',   1, '#2A7BE8', 'Costas · Bíceps',                  false),
@@ -224,6 +263,7 @@ insert into public.workout_days(slug, label, weekday, weekday_index, color, musc
   ('rest',   'DESCANSO',  'Domingo', 6, '#8E8E93', 'Recuperação Ativa',                true);
 
 -- ─── SEED: exercises ──────────────────────────────────────────────────────────
+-- Dados iniciais dos exercícios. Cada bloco refere o dia pelo `id` (1 a 6). Colunas: dia, posição, nome, séries, repetições, descanso (s) e dica de execução.
 -- PUSH A (id=1)
 insert into public.exercises(workout_day_id, position, name, sets, reps, rest_seconds, tip) values
   (1,1,'Supino Inclinado com Halteres','4','8–10',90,'Maior ativação da porção clavicular. Controle a descida em 3s.'),

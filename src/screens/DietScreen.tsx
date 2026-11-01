@@ -1,3 +1,10 @@
+/**
+ * # `DietScreen` — tela Dieta
+ * Mostra o plano alimentar do dia: refeição em destaque ("Agora" / "Próxima"), lista de todas as refeições (com itens, dicas e substitutos), total do dia e hidratação.
+ *
+ * A tela tem quatro situações, decididas pelo hook `useDiet`: `pending` (em preparação), `loading`, `error` e pronta (`plan` do banco ou `fixed` do código).
+ */
+
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,27 +25,61 @@ import { useOnline } from '../hooks/useOnline';
 import { Skeleton } from '../components/Skeleton';
 import type { Meal, DietItem, DietVariant } from '../types';
 
-/** 2150 -> "2.150" (padrão pt-BR, sem depender de Intl no Android). */
+/**
+ * ## `fmt(n)`
+ * Formata um número no padrão brasileiro: `2150` → `"2.150"`. Feito à mão com expressão regular para não depender do `Intl`, que não existe completo no Android.
+ *
+  * 2150 -> "2.150" (padrão pt-BR, sem depender de Intl no Android).
+  */
 const fmt = (n: number) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 
-/** Tira emoji/símbolos do começo de textos vindos dos dados (spec: sem emoji). */
+/**
+ * ## `plain(s)`
+ * Remove emojis e símbolos do começo de um texto vindo dos dados (o design não usa emojis).
+ *
+  * Tira emoji/símbolos do começo de textos vindos dos dados (spec: sem emoji).
+  */
 const plain = (s: string) => s.replace(/^[^A-Za-zÀ-ÿ0-9]+/, '').trim();
 
-/** Rótulo do segmento: "A" -> "Variante A"; "Treino" -> "Dia de treino". */
+/**
+ * ## `variantLabel(label)`
+ * Texto do botão de variante: `"A"` → `"Variante A"`; `"Treino"` → `"Dia de treino"`.
+ *
+  * Rótulo do segmento: "A" -> "Variante A"; "Treino" -> "Dia de treino".
+  */
 const variantLabel = (label: string) =>
   label.length <= 2 ? `Variante ${label}` : `Dia de ${label.toLowerCase()}`;
 
-/** Minutos desde 00:00 de "08:00"; null se o horário não for legível. */
+/**
+ * ## `minutesOf(time)`
+ * Converte `"08:30"` em minutos desde a meia-noite (510). Horário ilegível → `null`.
+ *
+  * Minutos desde 00:00 de "08:00"; null se o horário não for legível.
+  */
 function minutesOf(time: string): number | null {
   const m = /^(\d{1,2}):(\d{2})/.exec(time.trim());
   return m ? Number(m[1]) * 60 + Number(m[2]) : null;
 }
 
+/**
+ * ## Constantes
+ * - `NOW_WINDOW_MIN` → uma refeição conta como "Agora" até 45 minutos depois do horário.
+ * - `isRegular(m)` → refeição "de verdade": não é alternativa, suplemento nem jejum.
+ */
 const NOW_WINDOW_MIN = 45; // refeição conta como "Agora" até 45 min depois do horário
 
 const isRegular = (m: Meal) => !m.isAlternative && !m.isSupp && !m.isFasted;
 
 /**
+ * ## `pickHero(meals, nowMin)`
+ * Escolhe a refeição em destaque.
+ *
+ * 1. Considera só refeições regulares com horário legível.
+ * 2. Se alguma está na janela de 45 min → `{ kind: 'now' }`.
+ * 3. Senão, a primeira ainda por vir → `{ kind: 'next', inMin }` (minutos até ela).
+ * 4. Se todas já passaram → `{ kind: 'done' }` com a primeira de amanhã.
+ * 5. Sem horários legíveis → `null`.
+ *
  * Refeição em destaque: "Agora" (horário <= agora < horário + 45 min) ou a próxima
  * ainda por vir. `done` = passou da última refeição do dia. Sem horários legíveis -> null.
  */
@@ -55,7 +96,12 @@ function pickHero(meals: Meal[], nowMin: number):
   return { kind: 'done', first: timed[0].m };
 }
 
-/** 80 -> "daqui a 1 h 20"; 20 -> "daqui a 20 min"; 120 -> "daqui a 2 h". */
+/**
+ * ## `relative(min)`
+ * Texto de tempo restante: `20` → "daqui a 20 min", `80` → "daqui a 1 h 20", `120` → "daqui a 2 h".
+ *
+  * 80 -> "daqui a 1 h 20"; 20 -> "daqui a 20 min"; 120 -> "daqui a 2 h".
+  */
 function relative(min: number): string {
   if (min < 60) return `daqui a ${min} min`;
   const h = Math.floor(min / 60);
@@ -63,6 +109,9 @@ function relative(min: number): string {
   return m === 0 ? `daqui a ${h} h` : `daqui a ${h} h ${m}`;
 }
 
+/**
+ * Estilos da tela (refeições, cartão de destaque, totais).
+ */
 const useStyles = makeStyles(c => ({
   container: { flex: 1, backgroundColor: c.bg },
   scroll: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.sm },
@@ -153,6 +202,13 @@ const useStyles = makeStyles(c => ({
   totalValue: { flex: 1, textAlign: 'right', fontFamily: Font.body, fontSize: FontSize.md, color: c.textMuted },
 }));
 
+/**
+ * ## `MealItem({ item })`
+ * Um alimento da refeição, com botões para mostrar **Dica** ou **Substitutos**. Abrir um fecha o outro.
+ *
+ * - `showTip` e `showSubs` controlam o que está aberto.
+ * - Calorias só aparecem se forem maiores que zero.
+ */
 function MealItem({ item }: { item: DietItem }) {
   const styles = useStyles();
   const [showTip, setShowTip] = useState(false);
@@ -194,6 +250,7 @@ function MealItem({ item }: { item: DietItem }) {
             <View key={i} style={styles.sub}>
               <View style={styles.subTop}>
                 <Text style={styles.subName}>{sub.name}</Text>
+                {/* Armadilha 10: substituto sem calorias (valor 0) não exibe a linha de kcal. */}
                 {/* Substituto com kcal 0 não mostra calorias (armadilha 10) */}
                 {sub.kcal > 0 && <Text style={styles.subKcal}>{sub.kcal} kcal</Text>}
               </View>
@@ -207,6 +264,15 @@ function MealItem({ item }: { item: DietItem }) {
   );
 }
 
+/**
+ * ## `MealCard({ meal, past })`
+ * Cartão de uma refeição, recolhido por padrão; tocar abre os itens.
+ *
+ * 1. `accent` → cor da faixa lateral (traduzida para o tema).
+ * 2. `sub` → subtítulo: para suplementos e jejum um texto fixo; para as demais, os macros (P/C/G) e "Opção alternativa" quando for o caso.
+ * 3. `past` → refeição já passada fica com o nome mais apagado.
+ * 4. Sem calorias, mostra uma etiqueta ("Diário" ou "Jejum") no lugar.
+ */
 function MealCard({ meal, past }: { meal: Meal; past: boolean }) {
   const styles = useStyles();
   const { resolveAccent } = useTheme();
@@ -251,7 +317,10 @@ function MealCard({ meal, past }: { meal: Meal; past: boolean }) {
   );
 }
 
-// Dieta do Luiz (definida no código) no mesmo formato dos planos do banco
+/**
+ * ## `legacyVariants()`
+ * Monta as variantes A e B da dieta fixa do código no mesmo formato dos planos do banco, para a tela tratar os dois casos igual.
+ */
 function legacyVariants(): DietVariant[] {
   return [
     { key: 'A', label: 'A', banner: 'Dieta A — Com feijão ou lentilha no almoço', meals: makeMeals('A') },
@@ -259,16 +328,23 @@ function legacyVariants(): DietVariant[] {
   ];
 }
 
+/**
+ * ## `DietScreen()`
+ */
 export function DietScreen() {
   const styles = useStyles();
+  // Dados: tema, hook `useDiet` (estado, plano, variante), conexão e se a tela está em foco.
   const { colors, resolveAccent } = useTheme();
   const { status, error, plan: dbPlan, variant, changeVariant, retry, refresh } = useDiet();
   const timerInsets = useTimerInsets();
   const online = useOnline();
   const focused = useIsFocused();
+  // `saveFailed`: falhou ao salvar a variante? `showTotals`: bloco de totais aberto?
   const [saveFailed, setSaveFailed] = useState(false);
   const [showTotals, setShowTotals] = useState(false);
 
+  // ### Relógio de 60 s
+  // Enquanto a tela está em foco, atualiza `now` a cada minuto para o destaque "Agora/Próxima" acompanhar o horário. Fora de foco, o relógio para (economiza bateria).
   // Relógio de 60 s enquanto a tela está em foco: atualiza Agora/Próxima.
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -278,21 +354,28 @@ export function DietScreen() {
     return () => clearInterval(id);
   }, [focused]);
 
+  // ### Escolha das variantes
+  // A dieta fixa do código só vale com `status === 'fixed'`. Caso contrário usa o plano do banco. `current` é a variante selecionada (ou a primeira).
   // Dieta fixa do código só com status 'fixed' (perfil carregado e diet_fixed = true)
   const isLegacy = status === 'fixed';
   const legacy = useMemo(() => (isLegacy ? legacyVariants() : null), [isLegacy]);
   const variants: DietVariant[] = legacy ?? (dbPlan?.data.variants ?? []);
   const current = variants.find(v => v.key === variant) ?? variants[0];
   const meals = current?.meals ?? [];
+  // Totais do dia: `calcTotals` já ignora refeições alternativas (armadilha 10).
   // Totais ignoram refeições com isAlternative (armadilha 10): calcTotals já filtra.
   const totals = calcTotals(meals);
 
+  // ### `handleVariantChange(v)`
+  // Troca a variante; se não conseguir salvar, mostra o aviso "Mantivemos a anterior".
   const handleVariantChange = async (v: 'A' | 'B') => {
     setSaveFailed(false);
     const ok = await changeVariant(v);
     if (!ok) setSaveFailed(true);
   };
 
+  // ### Estados especiais
+  // Antes da tela principal, três saídas antecipadas: **em preparação** (botão Atualizar), **carregando** (esqueletos) e **erro** (botão de nova tentativa).
   // Dieta ainda não criada para este usuário
   if (status === 'pending') {
     return (
@@ -334,10 +417,16 @@ export function DietScreen() {
     );
   }
 
+  // ### Destaque
+  // 1. `nowMin` → minutos desde a meia-noite agora.
+  // 2. `hero` → refeição em destaque (ou "concluído").
+  // 3. `listMeals` → as demais refeições (a destacada sai da lista).
+  // 4. `isPast(m)` → a refeição já passou da janela de "Agora"?
   const nowMin = now.getHours() * 60 + now.getMinutes();
   const hero = pickHero(meals, nowMin);
   const heroMeal = hero && hero.kind !== 'done' ? hero.meal : null;
   const listMeals = meals.filter(m => m.id !== heroMeal?.id);
+  // `isPast(m)`: a refeição já passou? É regular e o horário dela + 45 min já ficou para trás.
   const isPast = (m: Meal) => {
     const t = minutesOf(m.time);
     return t !== null && isRegular(m) && t + NOW_WINDOW_MIN <= nowMin;
@@ -378,6 +467,7 @@ export function DietScreen() {
         )}
         {!!current.banner && <Text style={styles.banner}>{plain(current.banner)}</Text>}
 
+        {/* Cartão de destaque: etiqueta "Agora"/"Próxima", nome, horário, calorias, macros, observação e itens. */}
         {/* Refeição em destaque */}
         {heroMeal && hero && hero.kind !== 'done' && (
           <View
@@ -413,6 +503,7 @@ export function DietScreen() {
           </View>
         )}
 
+        {/* Lista das demais refeições. */}
         {/* Todas as refeições */}
         <Text style={styles.kicker}>Todas as refeições</Text>
         <View style={styles.meals}>
@@ -421,6 +512,7 @@ export function DietScreen() {
           ))}
         </View>
 
+        {/* Linha "Total do dia" (toque para expandir) e, expandida, as calorias grandes e os macros. Para a dieta fixa mostra a meta calculada; para planos do banco, o subtítulo e a nota da nutricionista. */}
         {/* Total do dia */}
         <Pressable
           onPress={() => setShowTotals(v => !v)}
@@ -459,6 +551,7 @@ export function DietScreen() {
           </View>
         )}
 
+        {/* Orientação de hidratação (texto específico para a dieta fixa). */}
         {/* Hidratação */}
         <View style={styles.hydration}>
           <Text style={styles.hydrationTitle}>Hidratação</Text>

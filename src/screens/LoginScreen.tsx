@@ -1,3 +1,8 @@
+/**
+ * # `LoginScreen` — tela de entrada
+ * Primeira tela para quem ainda não fez login: apresentação curta do app e o botão **Entrar com Google**.
+ */
+
 import React, { useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,12 +14,18 @@ import { ErrorBlock } from '../components/ErrorBlock';
 import { Notice } from '../components/Notice';
 import { useOnline } from '../hooks/useOnline';
 
+/**
+ * `BENEFITS`: os três benefícios listados na tela.
+ */
 const BENEFITS = [
   'Treino do seu programa',
   'Dieta da sua nutricionista',
   'Calendário dos seus treinos',
 ];
 
+/**
+ * Estilos da tela. `topSpace` e `bottomSpace` usam proporções (38/62) para centralizar o bloco um pouco acima do meio.
+ */
 const useStyles = makeStyles(c => ({
   container: { flex: 1, backgroundColor: c.bg },
   inner: { flexGrow: 1, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.xxxl },
@@ -36,13 +47,23 @@ const useStyles = makeStyles(c => ({
   footnote: { marginTop: Spacing.lg, fontFamily: Font.body, fontSize: FontSize.md, color: c.textFaint },
 }));
 
+/**
+ * ## `LoginScreen()`
+ * Estados: `loading` (login em andamento) e `error` (mensagem em português).
+ */
 export function LoginScreen() {
   const styles = useStyles();
   const { signIn } = useAuth();
+  // `online` vem do hook `useOnline`: sem internet, a tela avisa antes de a pessoa tentar.
   const online = useOnline();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // ### `handleSignIn()`
+  // 1. Liga o carregamento e limpa o erro anterior.
+  // 2. Chama o login com Google.
+  // 3. Se a pessoa **cancelou**, volta ao normal sem mensagem; qualquer outro erro é exibido.
+  // 4. Desliga o carregamento.
   const handleSignIn = async () => {
     setLoading(true);
     setError(null);
@@ -54,6 +75,7 @@ export function LoginScreen() {
     setLoading(false);
   };
 
+  // Estrutura: título, frase de apresentação, lista de benefícios, avisos (sem internet / erro), botão de login e nota de rodapé.
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.inner} showsVerticalScrollIndicator={false}>

@@ -1,10 +1,15 @@
-// Linha de números (spec §4): 2-3 números Barlow 700 xxxl + rótulo Inter sm,
-// separadores verticais de 1px e linha fina em cima e embaixo.
+/**
+ * # `NumbersRow`
+ * Linha com 2 ou 3 números grandes e seus rótulos (ex.: "12 treinos"), separados por linhas finas.
+ */
 import React from 'react';
 import { Text, View } from 'react-native';
 import { makeStyles } from '../contexts/ThemeContext';
 import { Font, FontSize, Spacing, Tracking, numberLineHeight } from '../utils/theme';
 
+/**
+ * Estilos: células, separadores e o número em fonte condensada com algarismos de largura fixa (`tabular-nums`).
+ */
 const useStyles = makeStyles(c => ({
   row: {
     flexDirection: 'row', borderTopWidth: 1, borderBottomWidth: 1, borderColor: c.border,
@@ -22,6 +27,10 @@ const useStyles = makeStyles(c => ({
   },
 }));
 
+/**
+ * ## `NumbersRow({ items, valueSize })`
+ * Para cada item desenha uma célula com número e rótulo. `ok` pinta o número de verde. Cada célula tem um rótulo único para leitores de tela ("12 treinos"), e `maxFontSizeMultiplier` limita o quanto o texto cresce com a fonte ampliada do sistema.
+ */
 export function NumbersRow({
   items, valueSize = FontSize.xxxl,
 }: { items: { value: string; label: string; ok?: boolean }[]; valueSize?: number }) {

@@ -1,11 +1,16 @@
-// Bloco de erro (spec §4): frase em `text`, causa em `textMuted`, faixa `red`
-// de 6px à esquerda e botão de contorno "Tentar de novo".
+/**
+ * # `ErrorBlock`
+ * Bloco padrão de erro: frase em destaque, causa em cinza, faixa vermelha à esquerda e botão "Tentar de novo".
+ */
 import React from 'react';
 import { Text, View } from 'react-native';
 import { makeStyles } from '../contexts/ThemeContext';
 import { Font, FontSize, LineHeight, Spacing } from '../utils/theme';
 import { OutlineButton } from './Buttons';
 
+/**
+ * Estilos: faixa vermelha de 6 px, título e causa com as fontes do tema.
+ */
 const useStyles = makeStyles(c => ({
   wrap: { flexDirection: 'row', gap: Spacing.lg },
   stripe: { width: 6, alignSelf: 'stretch', backgroundColor: c.red },
@@ -15,6 +20,14 @@ const useStyles = makeStyles(c => ({
   retry: { marginTop: Spacing.sm },
 }));
 
+/**
+ * ## `ErrorBlock({ title, cause, onRetry })`
+ * - `title` → o que deu errado.
+ * - `cause` → detalhe opcional.
+ * - `onRetry` → se informado, aparece o botão de nova tentativa.
+ *
+ * `accessibilityRole="alert"` faz leitores de tela anunciarem o erro.
+ */
 export function ErrorBlock({
   title, cause, onRetry,
 }: { title: string; cause?: string | null; onRetry?: () => void }) {

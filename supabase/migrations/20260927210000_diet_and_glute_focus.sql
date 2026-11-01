@@ -2,6 +2,7 @@
 -- 003 — Dieta por usuário (banco) + rotina com foco em glúteos e posteriores
 -- ============================================================================
 
+-- Cria a tabela `diet_plans`: planos alimentares guardados no banco como JSON (`jsonb`). A política de leitura deixa cada pessoa ler **apenas o plano ligado ao próprio perfil** (`diet_plan_id`). Isso mantém dietas de pessoas diferentes separadas.
 -- 1. Planos alimentares guardados no banco (protegidos por conta)
 create table if not exists public.diet_plans (
   id         serial primary key,
@@ -18,16 +19,19 @@ create policy read_own_diet_plan on public.diet_plans
   for select to authenticated
   using (id = (select p.diet_plan_id from public.profiles p where p.id = (select auth.uid())));
 
+-- Insere o plano. Neste repositório público, o conteúdo é um **exemplo fictício**; a dieta real foi prescrita por nutricionista e fica fora daqui. O texto entre `$plan$ ... $plan$` é só uma forma de escrever um texto longo com aspas sem precisar "escapá-las". `on conflict ... do update` atualiza se já existir.
 insert into public.diet_plans (slug, name, data)
 values ('ciclo-carbo-exemplo', 'Ciclo de carboidratos', $plan${"name": "Plano de exemplo", "subtitle": "Dados fictícios", "note": "Plano de exemplo. A dieta real de cada pessoa é prescrita por nutricionista e fica fora do repositório público.", "variants": [{"key": "A", "label": "Dia de treino", "banner": "Exemplo", "meals": [{"id": "cafe", "time": "08:00", "label": "Café da manhã", "icon": "🍳", "color": "#E0A85A", "kcal": 400, "macros": {"p": 25, "c": 40, "g": 15}, "items": [{"name": "Ovos mexidos", "detail": "3 unidades", "kcal": 240, "tip": "Exemplo.", "subs": []}]}]}, {"key": "B", "label": "Dia de descanso", "banner": "Exemplo", "meals": []}]}$plan$::jsonb)
 on conflict (slug) do update set name = excluded.name, data = excluded.data, updated_at = now();
 
+-- Liga o plano às contas do programa 5x e libera a aba de dieta.
 -- 2. Conta(s) do programa 5x recebem a dieta e a aba é liberada
 update public.profiles
    set diet_plan_id = (select id from public.diet_plans where slug = 'ciclo-carbo-exemplo'),
        diet_enabled = true
  where program_id = (select id from public.workout_programs where slug = 'fem-5x');
 
+-- Atualiza o gatilho de cadastro: contas novas nascem com a rotina 5x e este plano (esse comportamento foi **corrigido** depois, na migração de segurança 005: conta nova não recebe mais dieta).
 -- 3. Novas contas já nascem com a rotina 5x e esta dieta
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer set search_path = public as $$
@@ -46,6 +50,7 @@ begin
 end;
 $$;
 
+-- Ajuste de treino: 1 série sai da cadeira extensora e vai para o afundo búlgaro (mais estímulo em glúteo).
 -- 4. Inferior A: 1 série sai da extensora e vai para o Búlgaro (mais glúteo)
 update public.exercises e set sets = '4'
   from public.workout_days d
@@ -54,6 +59,7 @@ update public.exercises e set sets = '2'
   from public.workout_days d
  where e.workout_day_id = d.id and d.slug = 'f-inf-a' and e.position = 4;
 
+-- Reformula o dia C para só glúteos e posteriores. As linhas são **atualizadas no lugar** (mesmos ids), para o histórico e as anotações de carga continuarem valendo.
 -- 5. Dia C passa a ser só glúteos e posteriores (atualiza no lugar, preservando histórico)
 update public.workout_days
    set label = 'GLÚTEOS C', muscles = 'Glúteos · Posteriores'

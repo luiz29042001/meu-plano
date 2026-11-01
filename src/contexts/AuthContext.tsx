@@ -1,3 +1,8 @@
+/**
+ * # Contexto de autenticação (`AuthContext.tsx`)
+ * "Contexto" é o jeito do React de compartilhar dados com o app inteiro sem passá-los tela por tela. Este guarda **quem está logado**, o **perfil** (programa de treino, dieta) e as ações de entrar e sair.
+ */
+
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
@@ -7,6 +12,10 @@ import { friendlyError } from '../utils/errors';
 import { resolveDietMode } from '../utils/dietAccess';
 import type { DietMode, LoginError, Profile, ProfileStatus } from '../types';
 
+/**
+ * ## `AuthContextValue`
+ * O que qualquer tela pode ler com `useAuth()`: sessão, `userId`, perfil, estado do perfil, modo de dieta, `loading` (sessão inicial) e as ações `signIn`, `signOut` e `refreshProfile`.
+ */
 interface AuthContextValue {
   session: Session | null;
   user: User | null;
@@ -27,26 +36,41 @@ interface AuthContextValue {
   refreshProfile: () => Promise<boolean>;
 }
 
+/**
+ * Cria o contexto. O valor real é fornecido pelo `AuthProvider` abaixo.
+ */
 const AuthContext = createContext<AuthContextValue>({} as AuthContextValue);
 
-// Evita trocar o objeto de sessão (e re-renderizar tudo) quando nada relevante mudou.
+/**
+ * ## `sameSession(a, b)`
+ * Compara duas sessões pelo token e pelo usuário. Evita trocar o objeto de sessão (e redesenhar o app inteiro) quando nada relevante mudou.
+ */
 function sameSession(a: Session | null, b: Session | null): boolean {
   return (a?.access_token ?? null) === (b?.access_token ?? null)
     && (a?.user?.id ?? null) === (b?.user?.id ?? null);
 }
 
+/**
+ * ## `AuthProvider`
+ * Componente que envolve o app e fornece os dados de login a todas as telas.
+ */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  // Estados: sessão, perfil, etapa do perfil, mensagem de erro e se a sessão inicial ainda está sendo lida.
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileStatus, setProfileStatus] = useState<ProfileStatus>('idle');
   const [profileError, setProfileError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // `profileReq` numera as cargas de perfil: respostas antigas (de uma carga anterior ou de antes de um logout) são descartadas.
   // Descarta respostas antigas (ex.: duas cargas simultâneas ou logout no meio).
   const profileReq = useRef(0);
+  // `profileUid` lembra de qual usuário o perfil já foi carregado com sucesso.
   // Usuário cujo perfil está carregado com sucesso (null = nenhum).
   const profileUid = useRef<string | null>(null);
 
+  // ### `clearProfile()`
+  // Esquece o perfil (usado ao sair). Invalida cargas em andamento e volta ao estado "sem sessão".
   const clearProfile = useCallback(() => {
     profileReq.current++;
     profileUid.current = null;
@@ -55,6 +79,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfileError(null);
   }, []);
 
+  // ### `loadProfile(uid)`
+  // Carrega o perfil do usuário. Devolve `true` se deu certo.
+  //
+  // 1. Numera a carga e verifica se já havia perfil desse mesmo usuário.
+  // 2. Se não havia, limpa e entra em `loading`; se havia, **mantém na tela** o perfil atual durante a recarga.
+  // 3. Busca no banco.
+  // 4. Se outra carga mais nova começou, descarta esta resposta.
+  // 5. Perfil inexistente → estado de erro.
+  // 6. Sucesso → guarda e marca `ready`.
+  // 7. Falha → só mostra erro se não havia perfil válido; senão a tela continua como estava.
   const loadProfile = useCallback(async (uid: string): Promise<boolean> => {
     const req = ++profileReq.current;
     const hadProfile = profileUid.current === uid;
@@ -88,6 +122,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // ### Efeito de inicialização
+  // 1. Configura o login Google.
+  // 2. Lê a sessão salva; se existir, carrega o perfil. Se falhar, vai para o login em vez de travar.
+  // 3. Sempre termina o `loading` inicial.
+  // 4. Assina mudanças de login (`onAuthStateChange`).
+  // 5. Ao sair da conta → limpa o perfil.
+  // 6. Em `SIGNED_IN` (se o perfil ainda não está carregado) ou `USER_UPDATED` → recarrega o perfil.
+  // 7. A limpeza cancela a assinatura.
   useEffect(() => {
     configureGoogleSignIn();
 
@@ -102,6 +144,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       .finally(() => setLoading(false));
 
+    // > **Armadilha resolvida (1):** nunca chamar o Supabase *dentro* do callback acima. No navegador, a renovação do token (cerca de 1 h) segura uma trava; uma consulta feita ali dentro espera a trava e **congela todas as requisições seguintes**. Por isso a carga é adiada com `setTimeout(..., 0)`.
     // Importante (armadilha 1): não chamar o Supabase diretamente dentro deste callback.
     // No navegador, a renovação automática da sessão (≈ a cada 1h) segura uma trava
     // interna; uma consulta feita aqui dentro fica esperando essa trava e todas as
@@ -124,24 +167,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => listener.subscription.unsubscribe();
   }, [loadProfile, clearProfile]);
 
+  // ### `signIn()`
+  // Inicia o login com Google e devolve o possível erro.
   const signIn = useCallback(async () => {
     const { error } = await signInWithGoogle();
     return { error };
   }, []);
 
+  // ### `signOut()`
+  // Sai da conta, zera a sessão e limpa o perfil.
   const signOut = useCallback(async () => {
     await authSignOut();
     setSession(null);
     clearProfile();
   }, [clearProfile]);
 
+  // `userId`: texto estável, usado como dependência dos efeitos (o objeto `user` muda de identidade à toa).
   const userId = session?.user?.id ?? null;
 
+  // ### `refreshProfile()`
+  // Recarrega o perfil (botão "Tentar de novo"). Devolve `false` sem usuário ou se falhar.
   const refreshProfile = useCallback(async () => {
     if (!userId) return false;
     return loadProfile(userId);
   }, [userId, loadProfile]);
 
+  // Entrega os valores a todo o app. `dietMode` é recalculado a cada renderização pela regra de `dietAccess.ts`.
   return (
     <AuthContext.Provider value={{
       session,
@@ -161,4 +212,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * ## `useAuth()`
+ * Atalho para qualquer tela ler o contexto de autenticação.
+ */
 export const useAuth = () => useContext(AuthContext);

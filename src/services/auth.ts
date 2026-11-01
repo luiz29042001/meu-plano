@@ -1,3 +1,8 @@
+/**
+ * # Login nativo (`auth.ts`)
+ * Login com Google em **Android/iOS**: o Google devolve um `idToken` e o Supabase o troca por uma sessão. A versão do navegador é o `auth.web.ts`.
+ */
+
 import {
   GoogleSignin,
   statusCodes,
@@ -7,6 +12,15 @@ import { supabase } from './supabase';
 import { loginError, toLoginError } from './authErrors';
 import type { LoginError } from '../types';
 
+/**
+ * ## `configureGoogleSignIn()`
+ * Configura o SDK do Google uma vez, ao abrir o app.
+ *
+ * 1. Lê os IDs de cliente de `app.json > extra`.
+ * 2. Informa o `webClientId` (necessário para obter o `idToken`).
+ * 3. Inclui o ID do iOS só se existir.
+ * 4. Pede apenas os dados `profile` e `email`.
+ */
 export function configureGoogleSignIn() {
   const extra = Constants.expoConfig?.extra ?? {};
   GoogleSignin.configure({
@@ -17,7 +31,19 @@ export function configureGoogleSignIn() {
   });
 }
 
-/** Erros já vêm em pt-BR; a tela deve comparar por `error.code`. */
+/**
+ * ## `signInWithGoogle()`
+ * Faz o login completo. Devolve `{ error }`: `null` se deu certo.
+ *
+ * 1. Confere se o Google Play Services está disponível.
+ * 2. Abre a tela de escolha de conta do Google.
+ * 3. Versões novas do SDK devolvem `type: 'cancelled'` em vez de lançar erro; tratamos esse caso.
+ * 4. Sem `idToken`, não há como autenticar → erro genérico.
+ * 5. Entrega o token ao Supabase (`signInWithIdToken`), que cria a sessão.
+ * 6. No `catch`, converte os códigos do SDK (cancelado, em andamento, sem Play Services) nas mensagens certas.
+ *
+  * Erros já vêm em pt-BR; a tela deve comparar por `error.code`.
+  */
 export async function signInWithGoogle(): Promise<{ error: LoginError | null }> {
   try {
     await GoogleSignin.hasPlayServices();
@@ -44,6 +70,13 @@ export async function signInWithGoogle(): Promise<{ error: LoginError | null }> 
   }
 }
 
+/**
+ * ## `signOut()`
+ * Sai da conta.
+ *
+ * 1. Revoga o acesso e encerra a sessão no Google (se falhar, segue em frente).
+ * 2. Encerra a sessão no Supabase e devolve o possível erro.
+ */
 export async function signOut() {
   try {
     await GoogleSignin.revokeAccess();
@@ -53,6 +86,10 @@ export async function signOut() {
   return { error };
 }
 
+/**
+ * ## `getSession()`
+ * Lê a sessão salva no aparelho (se a pessoa já estava logada) e devolve `{ session, error }`.
+ */
 export async function getSession() {
   const { data, error } = await supabase.auth.getSession();
   return { session: data.session, error };

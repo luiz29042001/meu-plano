@@ -1,9 +1,15 @@
-// Botões base da linguagem Splits59 (spec §4). Mesmos nos dois temas.
+/**
+ * # Botões (`Buttons.tsx`)
+ * Três botões padronizados, iguais nos dois temas: `PrimaryButton`, `OutlineButton` e `LinkButton`. Todos têm área de toque mínima e informam seu estado a leitores de tela.
+ */
 import React from 'react';
 import { ActivityIndicator, Pressable, Text, type StyleProp, type ViewStyle } from 'react-native';
 import { makeStyles, useTheme } from '../contexts/ThemeContext';
 import { Font, FontSize, Radius, Spacing, Touch, Tracking } from '../utils/theme';
 
+/**
+ * Estilos dos três botões e seus estados (desativado, pressionado, "feito" em verde).
+ */
 const useStyles = makeStyles(c => ({
   primary: {
     minHeight: Touch.primary, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center',
@@ -43,6 +49,9 @@ const useStyles = makeStyles(c => ({
   },
 }));
 
+/**
+ * `BaseProps`: propriedades comuns — texto, ação ao tocar, desativado, descrição de acessibilidade e estilo extra.
+ */
 interface BaseProps {
   label: string;
   onPress?: () => void;
@@ -51,7 +60,17 @@ interface BaseProps {
   style?: StyleProp<ViewStyle>;
 }
 
-/** Botão principal: tinta no claro, verde no escuro (token `primary`). */
+/**
+ * ## `PrimaryButton`
+ * Ação principal da tela (tinta no tema claro, verde no escuro).
+ *
+ * - `loading` → mostra um indicador de carregamento e bloqueia o toque.
+ * - `leadingText` → texto grande antes do rótulo (ex.: contador).
+ * - `tone="done"` → versão verde para ações concluídas.
+ * - Ao pressionar, escurece ligeiramente.
+ *
+  * Botão principal: tinta no claro, verde no escuro (token `primary`).
+  */
 export function PrimaryButton({
   label, onPress, disabled, loading, accessibilityLabel, style, leadingText, tone = 'default',
 }: BaseProps & { loading?: boolean; leadingText?: string; tone?: 'default' | 'done' }) {
@@ -85,7 +104,12 @@ export function PrimaryButton({
   );
 }
 
-/** Botão de contorno. `tone="danger"` = texto `red` e contorno discreto (Sair da conta). */
+/**
+ * ## `OutlineButton`
+ * Ação secundária, só com contorno. `tone="danger"` deixa o texto vermelho (ex.: "Sair da conta").
+ *
+  * Botão de contorno. `tone="danger"` = texto `red` e contorno discreto (Sair da conta).
+  */
 export function OutlineButton({
   label, onPress, disabled, accessibilityLabel, style, tone = 'default',
 }: BaseProps & { tone?: 'default' | 'danger' }) {
@@ -119,7 +143,12 @@ export function OutlineButton({
   );
 }
 
-/** Link de ação: Inter 500, sublinhado, área >= 44px. Só para ações raras e inline (nunca por série/refeição). */
+/**
+ * ## `LinkButton`
+ * Ação rara e discreta, no formato de link sublinhado, com área de toque de 44 px.
+ *
+  * Link de ação: Inter 500, sublinhado, área >= 44px. Só para ações raras e inline (nunca por série/refeição).
+  */
 export function LinkButton({ label, onPress, accessibilityLabel, style, disabled }: BaseProps) {
   const styles = useStyles();
   return (

@@ -1,3 +1,15 @@
+/**
+ * # `WorkoutScreen` — tela Treino
+ * O coração do app. Guia a pessoa **exercício por exercício**: mostra o exercício atual com séries × repetições, registra cada série feita, dispara o descanso, permite anotar a carga e, no fim, registra o treino do dia.
+ *
+ * Peças do arquivo (de baixo para cima na hierarquia):
+ * - `parseSets` → interpreta o texto de séries ("3-4").
+ * - `Check` → caixinha de marcar.
+ * - `CurrentExercise` → cartão grande do exercício atual.
+ * - `CompactRow` → linha resumida dos demais.
+ * - `WorkoutScreen` → junta tudo.
+ */
+
 import React, { useState, useEffect, useRef } from 'react';
 import {
   AccessibilityInfo, Platform, Vibration, View, Text, Pressable, ScrollView, TextInput,
@@ -28,19 +40,36 @@ import { WorkoutDock } from '../components/WorkoutDock';
 import { NumbersRow } from '../components/NumbersRow';
 import type { WorkoutDay, Exercise } from '../types';
 
+/**
+ * `NoteStatus`: etapa de salvamento da anotação — `idle` (nada), `saving`, `saved` ou `error`.
+ */
 type NoteStatus = 'idle' | 'saving' | 'saved' | 'error';
 
+/**
+ * ## Constantes
+ * - `TABS_HEIGHT` → altura fixa das abas (armadilha 7: sem isso o texto corta no Android).
+ * - `LONG_NUMBERS` e `LONG_NUMBERS_SIZE` → textos longos como "12–20/perna" usam fonte menor (78%) para caber.
+ * - `SUMMARY_MS` → o resumo "Treino registrado" fica 3 s na tela.
+ */
 const TABS_HEIGHT = Touch.comfort;       // armadilha 7: altura fixa
 const LONG_NUMBERS = 8;                  // "12–20/perna" cai de tamanho para caber
 const LONG_NUMBERS_SIZE = Math.round(FontSize.display * 0.78);
 const SUMMARY_MS = 3000;
 
-/** "3-4" -> 3; inválido ou < 1 -> 1; máximo 12. */
+/**
+ * ## `parseSets(sets)`
+ * Converte o texto de séries em número: `"3-4"` → 3. Se for inválido ou menor que 1 → 1; o máximo é 12.
+ *
+  * "3-4" -> 3; inválido ou < 1 -> 1; máximo 12.
+  */
 function parseSets(sets: string | number): number {
   const n = parseInt(String(sets), 10);
   return Number.isFinite(n) && n >= 1 ? Math.min(12, n) : 1;
 }
 
+/**
+ * Estilos da tela.
+ */
 const useStyles = makeStyles(c => ({
   container: { flex: 1, backgroundColor: c.bg },
   scroll: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.xl },
@@ -156,6 +185,10 @@ const useStyles = makeStyles(c => ({
   skelGap: { marginTop: Spacing.lg },
 }));
 
+/**
+ * ## `Check({ checked, onPress, label })`
+ * Caixa de seleção. Marcada mostra "✓". Declarada como `checkbox` para leitores de tela.
+ */
 function Check({
   checked, onPress, label,
 }: { checked: boolean; onPress: () => void; label: string }) {
@@ -175,6 +208,12 @@ function Check({
   );
 }
 
+/**
+ * ## `CurrentExercise(...)`
+ * Cartão do exercício em foco.
+ *
+ * Recebe o exercício, a posição ("2 de 6"), séries já feitas, a cor do dia, a anotação salva, o rascunho e as funções para iniciar descanso, desfazer série e salvar anotação.
+ */
 function CurrentExercise({
   exercise, index, total, checked, setsDone, accent, note, onLaunchTimer, onSaveNote, draftText, onDraftChange,
   onUndoSet,
@@ -195,8 +234,17 @@ function CurrentExercise({
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  // Estados locais: dica aberta? anotação aberta? situação do salvamento.
   const [showTip, setShowTip] = useState(false);
   const [showNote, setShowNote] = useState(draftText !== undefined);
+  // ### Derivados
+  // - `draft` → texto em edição (o rascunho, ou a anotação salva se não houver rascunho).
+  // - `hasNote` → existe anotação salva?
+  // - `dirty` → o texto mudou em relação ao salvo? (habilita o botão Salvar)
+  // - `setsTotal` / `shown` → total de séries e quantas mostrar como feitas (exercício marcado = todas).
+  // - `lastSet` → está na última série?
+  // - `setLabel` → "Série 2 de 4" ou "Última série".
+  // - `firstLine` → primeira linha da anotação, exibida em "Última vez".
   const draft = draftText ?? note;
   const [status, setStatus] = useState<NoteStatus>('idle');
   const hasNote = note.length > 0;
@@ -209,6 +257,8 @@ function CurrentExercise({
     : lastSet && setsTotal > 1 ? 'Última série' : `Série ${shown + 1} de ${setsTotal}`;
   const firstLine = note.split('\n')[0];
 
+  // ### `openNote()`
+  // Abre/fecha a anotação (fecha a dica) e zera o aviso de status ao abrir.
   const openNote = () => {
     setShowTip(false);
     setShowNote(v => {
@@ -217,6 +267,12 @@ function CurrentExercise({
     });
   };
 
+  // ### `save()`
+  // Salva a anotação.
+  //
+  // 1. Ignora se já está salvando.
+  // 2. Mostra "Salvando…" e chama a função de salvar.
+  // 3. Sucesso → "Salvo" e descarta o rascunho; some após 2 s. Falha → mensagem de erro.
   const save = async () => {
     if (status === 'saving') return;
     setStatus('saving');
@@ -226,6 +282,9 @@ function CurrentExercise({
     if (ok) setTimeout(() => setStatus(s => (s === 'saved' ? 'idle' : s)), 2000);
   };
 
+  // ### Textos exibidos
+  // - `numbers` → "3 × 12" em tamanho grande (menor se for longo).
+  // - `statusText` → mensagem sob a anotação conforme a situação (salvando, salvo, erro ou aviso de que salvar em branco apaga).
   const numbers = `${exercise.sets} × ${exercise.reps}`;
   const bigSize = numbers.length > LONG_NUMBERS ? LONG_NUMBERS_SIZE : FontSize.display;
 
@@ -236,6 +295,8 @@ function CurrentExercise({
           : draft.trim() === '' && hasNote ? 'Salvar em branco apaga a anotação'
             : '';
 
+  // ### O que o cartão desenha
+  // Posição, nome, séries × repetições, linha de série/descanso, barra de séries, última carga (toque para anotar), botões de ação, dica "Como fazer" e o campo de anotação.
   return (
     <View style={styles.current}>
       <Text style={styles.pos}>Exercício {index} de {total}</Text>
@@ -339,6 +400,10 @@ function CurrentExercise({
   );
 }
 
+/**
+ * ## `CompactRow({ exercise, checked, onToggle, onFocus })`
+ * Linha resumida de um exercício: tocar no nome o coloca em foco; a caixa à direita marca/desmarca.
+ */
 function CompactRow({
   exercise, checked, onToggle, onFocus,
 }: { exercise: Exercise; checked: boolean; onToggle: () => void; onFocus: () => void }) {
@@ -363,11 +428,15 @@ function CompactRow({
   );
 }
 
+/**
+ * ## `WorkoutScreen()`
+ */
 export function WorkoutScreen() {
   const styles = useStyles();
   const { colors, dayColor } = useTheme();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  // `requestedSlug`: dia pedido na navegação (ex.: vindo do card "Próximo treino" da Início).
   const requestedSlug: string | undefined = route.params?.daySlug;
   const {
     days, checks, todayCompletion, nextWorkout,
@@ -377,18 +446,23 @@ export function WorkoutScreen() {
   const timerInsets = useTimerInsets();
   const { profile } = useAuth();
   const online = useOnline();
+  // Dados e nomes usados na tela: programa, data de hoje e a contagem de séries feitas hoje (`useSetProgress`).
   const programName = profile?.program?.name ?? 'Meu treino';
   const today = todayISO();
   const { counts, setCount } = useSetProgress(today);
 
+  // `autoRest`: o cronômetro inicia sozinho a cada série? Lido da preferência do aparelho (padrão desligado).
   // Descanso automático ao marcar série (preferência do aparelho, padrão ligado).
   const [autoRest, setAutoRest] = useState(false);
   useEffect(() => { loadAutoRest().then(setAutoRest); }, []);
 
+  // ### Seleção do dia ativo
+  // Ordem de prioridade: 1) dia pedido por navegação; 2) próximo treino da sequência. A pessoa sempre pode trocar nas abas.
   // Seleção do treino ativo, nesta ordem de prioridade:
   // 1) daySlug vindo por navegação (ex: card "Próximo treino" da Home)
   // 2) próximo treino da sequência PPL (fallback quando se chega sem parâmetro)
   // O usuário pode sempre trocar manualmente nas abas depois.
+  // Estados: aba ativa, resumo pós-conclusão, último dia pedido já aplicado, exercício em foco, lista de "feitos" aberta e rascunhos das anotações.
   const [activeDayIdx, setActiveDayIdx] = useState<number | null>(null);
   const [summary, setSummary] = useState<{ done: number; sets: number; minutes: string } | null>(null);
   // Guarda o último slug já aplicado, para re-sincronizar caso a Home mande
@@ -398,11 +472,16 @@ export function WorkoutScreen() {
   const [showDone, setShowDone] = useState(false);
   // Rascunhos de anotação por exercício: sobrevivem a marcar o exercício ou abrir outro.
   const [drafts, setDrafts] = useState<Record<number, string>>({});
+  // Referências (não redesenham a tela): hora de início do treino, última marcação (para "tentar de novo"), rolagem das abas.
   const startedAtRef = useRef<number | null>(null);
   const lastToggleRef = useRef<{ id: number; was: boolean } | null>(null);
   const tabsRef = useRef<ScrollView>(null);
   const tabX = useRef<Record<number, number>>({});
 
+  // ### Efeito: escolher a aba
+  // 1. Sem dias carregados, nada a fazer.
+  // 2. Se veio um dia novo por navegação, abre nele (a tela continua montada na pilha, então é preciso reaplicar).
+  // 3. Sem pedido e sem aba escolhida, abre no próximo treino.
   useEffect(() => {
     if (days.length === 0) return;
 
@@ -417,16 +496,23 @@ export function WorkoutScreen() {
     }
   }, [days, nextWorkout, requestedSlug, appliedSlug, activeDayIdx]);
 
+  // `activeDay` e `exercises`: o dia da aba atual e sua lista de exercícios.
   const resolvedIdx = activeDayIdx ?? 0;
   const activeDay: WorkoutDay | undefined = days[resolvedIdx];
   const exercises = activeDay?.exercises ?? [];
 
+  // Efeito: rola as abas (6 dias cabem rolando na horizontal) para a aba ativa ficar à vista.
   // Aba ativa sempre à vista (6 dias rolam na horizontal).
   useEffect(() => {
     const x = tabX.current[resolvedIdx];
     if (x !== undefined) tabsRef.current?.scrollTo({ x: Math.max(0, x - Spacing.xxxl), animated: false });
   }, [resolvedIdx, days.length]);
 
+  // ### Progresso
+  // - `checkedCount`/`total`/`progress` → exercícios feitos, total e fração (0 a 1).
+  // - `allDone` → todos feitos?
+  // - `alreadyMarked` → o treino de hoje já foi registrado neste dia?
+  // - `justCompleted` → acabou de concluir (mostra o resumo).
   const checkedCount = exercises.filter(e => checks[e.id]).length;
   const total = exercises.length;
   const progress = total > 0 ? checkedCount / total : 0;
@@ -435,13 +521,23 @@ export function WorkoutScreen() {
   const alreadyMarked = !!todayCompletion && todayCompletion.workout_day_id === activeDay?.id;
   const justCompleted = summary !== null;
 
+  // Mantém a tela ligada durante o treino; solta ao concluir, sair da tela ou ir para segundo plano.
   // Tela ligada durante o treino; solta ao concluir, sair da tela ou ir para segundo plano.
   useWorkoutKeepAwake(status === 'ready' && !!activeDay && !activeDay.is_rest && !alreadyMarked);
 
+  // `saving`: está salvando a conclusão?
   const [saving, setSaving] = useState(false);
 
+  // `haptic(ms)`: vibração curta de confirmação (só Android).
   const haptic = (ms: number) => { if (Platform.OS === 'android') Vibration.vibrate(ms); };
 
+  // ### `doComplete()`
+  // Registra o treino.
+  //
+  // 1. Ignora se já está salvando.
+  // 2. Chama `completeWorkout`.
+  // 3. Sucesso → vibra, calcula o resumo: exercícios feitos, séries (contadas ou o previsto) e minutos desde a primeira série (limitado a 999; "–" se não houve início).
+  // 4. Mostra o resumo por 3 s.
   const doComplete = async () => {
     if (!activeDay || saving) return;
     setSaving(true);
@@ -460,6 +556,8 @@ export function WorkoutScreen() {
     }
   };
 
+  // ### `confirmSkipped()`
+  // Se faltam exercícios, pergunta "Concluir sem terminar tudo?" antes de registrar; se não falta nenhum, registra direto.
   const confirmSkipped = () => {
     const missing = total - checkedCount;
     if (missing > 0) {
@@ -474,6 +572,8 @@ export function WorkoutScreen() {
     doComplete();
   };
 
+  // ### `handleComplete()`
+  // Ponto de entrada da conclusão. Se **outro** treino já foi registrado hoje, pergunta se quer substituí-lo (só existe um registro por dia); depois segue para `confirmSkipped`.
   const handleComplete = () => {
     if (!activeDay || saving) return;
     // Já existe outro treino registrado hoje: concluir aqui substitui aquele.
@@ -490,6 +590,13 @@ export function WorkoutScreen() {
     confirmSkipped();
   };
 
+  // ### `toggle(id, was)`
+  // Marca/desmarca um exercício.
+  //
+  // 1. Guarda a ação para o "tentar de novo".
+  // 2. Aplica a marcação.
+  // 3. Ao marcar como feito, fecha o cronômetro.
+  // 4. Ao voltar a pendente, zera as séries.
   const toggle = (id: number, was: boolean) => {
     lastToggleRef.current = { id, was };
     toggleCheck(id, was);
@@ -498,9 +605,12 @@ export function WorkoutScreen() {
     if (was) setCount(id, 0);
   };
 
+  // `topSpacer`: espaço no topo quando o cronômetro flutuante está em cima.
   // Espaço para o cronômetro: em cima (entre o cabeçalho e as abas) ou embaixo da lista.
   const topSpacer = timerInsets.top > 0 ? <View style={{ height: timerInsets.top }} /> : null;
 
+  // ### Estados antes da tela principal
+  // Carregando (esqueletos), erro (com nova tentativa) ou sem programa (atualizar / voltar ao início).
   if (status === 'loading' || status === 'error' || status === 'empty') {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
@@ -535,6 +645,11 @@ export function WorkoutScreen() {
     );
   }
 
+  // ### Separação dos exercícios
+  // - `done`/`pending` → feitos e pendentes.
+  // - `current` → o exercício em foco: o escolhido pela pessoa ou o primeiro pendente.
+  // - `doneRows`/`nextRows` → demais feitos e demais pendentes (o atual sai das listas).
+  // - `accent` → cor do dia traduzida para o tema.
   const done = exercises.filter(e => checks[e.id]);
   const pending = exercises.filter(e => !checks[e.id]);
   const focused = focusId != null ? exercises.find(e => e.id === focusId) : undefined;
@@ -543,6 +658,15 @@ export function WorkoutScreen() {
   const nextRows = pending.filter(e => e.id !== current?.id);
   const accent = activeDay ? dayColor(activeDay.color) : colors.restColor;
 
+  // ### `onSetDone()`
+  // Botão "Série feita".
+  //
+  // 1. Calcula a nova contagem (sem passar do total) e guarda a hora de início na primeira série.
+  // 2. Grava a contagem e vibra.
+  // 3. Se completou as séries do exercício, marca o exercício como feito e tira o foco manual.
+  // 4. `finishesAll` → era a última série do último exercício? Então não há descanso depois.
+  // 5. Se o descanso automático está ligado (e não terminou tudo) inicia o cronômetro; senão fecha o anterior.
+  // 6. Anuncia por voz (acessibilidade) a série feita e o descanso.
   // ─── Série feita ──────────────────────────────────────────────────────────
   const onSetDone = () => {
     if (!current || !activeDay) return;
@@ -569,18 +693,29 @@ export function WorkoutScreen() {
     );
   };
 
+  // ### `onUndoSet()`
+  // Desfaz a última série do exercício atual (nunca abaixo de zero).
   const onUndoSet = () => {
     if (!current) return;
     const c = counts[current.id] ?? 0;
     if (c > 0) setCount(current.id, c - 1);
   };
 
+  // ### `onReopen()`
+  // Reabre um exercício já marcado: volta a pendente e o coloca em foco.
   const onReopen = () => {
     if (!current) return;
     toggle(current.id, true);
     setFocusId(current.id);
   };
 
+  // ### Botão fixo (dock): uma ação por vez
+  // Escolhe o botão certo:
+  // 1. Salvando → botão em carregamento.
+  // 2. Tudo feito → "Marcar como concluído".
+  // 3. Exercício atual já feito → "Reabrir exercício".
+  // 4. Caso normal → "Série feita" (verde), com descrição de acessibilidade completa.
+  // Dia de descanso, treino já registrado ou resumo na tela → sem botão.
   // ─── Dock (uma ação por vez) ──────────────────────────────────────────────
   let dock: React.ReactNode = null;
   if (!activeDay?.is_rest && total > 0 && !alreadyMarked && !justCompleted) {
@@ -604,6 +739,7 @@ export function WorkoutScreen() {
     }
   }
 
+  // `showFinish`: mostra o botão secundário "Concluir treino" (para encerrar sem terminar tudo).
   const showFinish = !activeDay?.is_rest && !allDone && !alreadyMarked && !justCompleted;
 
   return (
@@ -611,6 +747,7 @@ export function WorkoutScreen() {
       <ScreenHeader title="Treino" subtitle={programName} back={false} />
       {topSpacer}
 
+      {/* Abas dos dias: rolagem horizontal; cada aba mostra o nome, um ponto na cor do dia se for o próximo treino e um sublinhado se estiver ativa. Tocar troca de dia e zera resumo, foco e lista de feitos. */}
       {/* Abas dos dias */}
       <View style={styles.tabsWrap}>
         <ScrollView
@@ -652,6 +789,7 @@ export function WorkoutScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Avisos fixos: sem internet, falha ao marcar e falha ao concluir (com "tentar de novo"). */}
         {(!online || checkError || (saveError && !justCompleted)) ? (
           <View style={styles.notices}>
             {!online && (
@@ -673,6 +811,7 @@ export function WorkoutScreen() {
           </View>
         ) : null}
 
+        {/* Manchete do dia (nome, músculos, contador de exercícios) e barra de progresso — verde quando completa. */}
         {activeDay && (
           <View>
             <DayHeadline
@@ -701,6 +840,7 @@ export function WorkoutScreen() {
           </View>
         )}
 
+        {/* Dia de descanso: cartão de recuperação ativa. */}
         {activeDay?.is_rest && (
           <View style={styles.restCard}>
             <Text style={styles.restTitle}>Recuperação ativa</Text>
@@ -713,6 +853,7 @@ export function WorkoutScreen() {
 
         {!activeDay?.is_rest && (
           <View style={styles.list}>
+            {/* Grupo "N feitos" recolhido; tocar expande a lista. */}
             {/* Feitos recolhidos: a linha inteira é o botão */}
             {doneRows.length > 0 && (
               <>
@@ -752,6 +893,7 @@ export function WorkoutScreen() {
               </>
             )}
 
+            {/* Cartão do exercício atual (`CurrentExercise`), com os callbacks de descanso, desfazer, anotação e rascunho. */}
             {/* Exercício atual */}
             {current && (
               <CurrentExercise
@@ -775,6 +917,7 @@ export function WorkoutScreen() {
               />
             )}
 
+            {/* Linhas compactas dos próximos exercícios. */}
             {/* Próximos */}
             {nextRows.map(ex => (
               <CompactRow
@@ -788,6 +931,7 @@ export function WorkoutScreen() {
           </View>
         )}
 
+        {/* Rodapé de conclusão: resumo "Treino registrado" logo após concluir; "Treino de hoje concluído" se já registrado; ou o botão "Concluir treino (feitos/total)". */}
         {!activeDay?.is_rest && (
           <View style={styles.completeSection}>
             {justCompleted && summary ? (
@@ -816,6 +960,7 @@ export function WorkoutScreen() {
         )}
       </ScrollView>
 
+      {/* Dock fixo, renderizado fora da rolagem. */}
       {dock ? <WorkoutDock>{dock}</WorkoutDock> : null}
     </SafeAreaView>
   );

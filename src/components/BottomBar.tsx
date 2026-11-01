@@ -1,19 +1,30 @@
-// Barra inferior (spec 2.4): Início / Treino / Dieta em todas as telas logadas.
-// Fica NO FLUXO (abaixo do Stack), então o conteúdo das telas já termina acima dela.
+/**
+ * # `BottomBar`
+ * Barra de navegação inferior (Início / Treino / Dieta). Fica **no fluxo da tela**, abaixo da navegação, então o conteúdo já termina acima dela.
+ */
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { makeStyles } from '../contexts/ThemeContext';
 import { Font, FontSize, Layout, Tracking } from '../utils/theme';
 
+/**
+ * `BarItem`: os três destinos possíveis.
+ */
 export type BarItem = 'Home' | 'Workout' | 'Diet';
 
+/**
+ * `ITEMS`: nome da rota, texto exibido e descrição para leitores de tela.
+ */
 const ITEMS: { name: BarItem; label: string; a11y: string }[] = [
   { name: 'Home', label: 'Início', a11y: 'Ir para Início' },
   { name: 'Workout', label: 'Treino', a11y: 'Ir para Treino' },
   { name: 'Diet', label: 'Dieta', a11y: 'Ir para Dieta' },
 ];
 
+/**
+ * Estilos: faixa de 3 px no topo do item ativo e rótulos em maiúsculas.
+ */
 const useStyles = makeStyles(c => ({
   bar: { flexDirection: 'row', backgroundColor: c.bg, borderTopWidth: 1, borderTopColor: c.border },
   cell: { flex: 1, minHeight: Layout.BAR_HEIGHT, alignItems: 'center', justifyContent: 'center' },
@@ -26,6 +37,12 @@ const useStyles = makeStyles(c => ({
   labelActive: { color: c.text },
 }));
 
+/**
+ * ## `BottomBar({ active, onPress })`
+ * 1. Lê a área segura do aparelho (`insets`) para não ficar atrás da barra de gestos.
+ * 2. Desenha um botão por item; o ativo recebe o indicador e o texto forte.
+ * 3. Ao tocar, chama `onPress` com o nome do destino.
+ */
 export function BottomBar({
   active, onPress,
 }: { active: BarItem; onPress: (name: BarItem) => void }) {
