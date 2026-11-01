@@ -2,6 +2,7 @@
   "name": "meu-plano",
   "version": "1.0.0",
   "scripts": {
+    "configurar": "node scripts/configurar.mjs",
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",

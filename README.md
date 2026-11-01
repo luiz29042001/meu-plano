@@ -53,12 +53,26 @@ Todo arquivo de código tem um **comentário de abertura** explicando seu papel,
 
 Ordem sugerida para entender o app: `App.tsx` → `src/navigation/` → `src/contexts/` → `src/hooks/useWorkout.ts` → `src/screens/WorkoutScreen.tsx` → `supabase/migrations/`.
 
-## Rodando
+## Quero rodar o meu
+
+👉 **[Guia de instalação do zero](docs/guia/instalacao.md)**: contas, banco, login Google, versão web, iPhone e APK Android, passo a passo e sem precisar programar. Um assistente preenche a configuração por você:
+
 ```bash
-npm install
-# preencha app.json > expo.extra (supabaseUrl, supabaseAnonKey, client IDs do Google)
-# e coloque o seu google-services.json na raiz
-npx expo start --web      # web
-npx tsc --noEmit -p .     # checagem de tipos
+npm ci                  # instala as dependências nas versões testadas
+npm run configurar      # pergunta os dados do seu Supabase e Google e grava no app.json
+npx expo start --web    # abre em http://localhost:8081
 ```
-É preciso um projeto Supabase próprio com as migrações de `supabase/migrations/` aplicadas.
+
+As 6 migrações de `supabase/migrations/` montam o banco do zero (tabelas, RLS, dois programas de treino e um plano de dieta fictício para teste).
+
+## Quero continuar o projeto com IA
+
+👉 **[Como tocar o projeto com IA](docs/guia/trabalhando-com-ia.md)**: como pedir mudanças de um jeito que dá certo, o que sempre exige aprovação humana, como assumir o projeto (handover, com prompt pronto para adaptar o `CLAUDE.md` a você) e o ritmo de uma conversa produtiva.
+
+## Checagens antes de entregar
+Não há suíte de testes automatizados; a validação é tipos + os dois bundles (o CI do GitHub roda tipos e bundle web a cada envio):
+```bash
+npx tsc --noEmit -p .
+npx expo export --platform web --output-dir .tmp-export-web
+npx expo export --platform android --output-dir .tmp-export-android
+```
