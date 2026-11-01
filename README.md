@@ -13,6 +13,25 @@ App pessoal de **treino e dieta**, em uso real por duas pessoas (Android via APK
 - Plano alimentar por usuário (fixo no código ou vindo do banco), com variantes e substitutos.
 - Calendário de conclusões, tema claro/escuro, login com Google.
 
+## Telas
+
+Capturas do app em uso real no Android (APK).
+
+<table>
+  <tr>
+    <td align="center" width="33%"><img src="docs/img/01-inicio.jpg" alt="Tela inicial com o próximo treino e a semana" width="260"><br><sub><b>Início</b>: próximo treino pela sequência, resumo e treinos da semana</sub></td>
+    <td align="center" width="33%"><img src="docs/img/02-treino.jpg" alt="Tela de treino com o exercício atual" width="260"><br><sub><b>Treino</b>: exercício atual, séries, carga da última vez e dicas</sub></td>
+    <td align="center" width="33%"><img src="docs/img/03-descanso.jpg" alt="Cronômetro de descanso aberto sobre o treino" width="260"><br><sub><b>Descanso</b>: cronômetro que não perde a conta em segundo plano</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/img/04-calendario.jpg" alt="Calendário de treinos do mês" width="260"><br><sub><b>Calendário</b>: treinos feitos, por tipo, e o total</sub></td>
+    <td align="center"><img src="docs/img/05-perfil-claro.jpg" alt="Perfil no tema claro" width="260"><br><sub><b>Perfil</b>: tema, avisos e preferências do treino</sub></td>
+    <td align="center"><img src="docs/img/06-perfil-escuro.jpg" alt="Perfil no tema escuro" width="260"><br><sub><b>Tema escuro</b>: claro, escuro ou o do sistema</sub></td>
+  </tr>
+</table>
+
+<p align="center"><img src="docs/img/07-notificacao-android.jpg" alt="Notificação do descanso no Android" width="420"><br><sub><b>Android</b>: o descanso continua na notificação com o app fechado</sub></p>
+
 ## Stack
 React Native 0.74 + Expo SDK 51 + TypeScript · React Navigation · Supabase (Postgres, Auth, **RLS em todas as tabelas**) · módulo nativo Kotlin para a notificação do cronômetro · EAS (APK) · web/PWA no GitHub Pages.
 
