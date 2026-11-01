@@ -19,3 +19,7 @@ google-services.json
 
 # backup criado por npm run configurar
 app.json.bak
+
+# skills de terceiros instaladas localmente (ver .claude/skills/README.md)
+.claude/skills/*
+!.claude/skills/README.md

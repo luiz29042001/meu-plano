@@ -18,10 +18,16 @@ A IA não lembra de conversas anteriores. Toda a memória do projeto mora em **a
 | `docs/tech/`, `docs/design/`, `docs/review/` | Planos técnicos, especificações visuais e revisões de cada funcionalidade | A cada funcionalidade |
 | `.claude/agents/` | A "equipe" especializada: líder técnico, diretor de design, banco de dados, construtor de telas, testador, revisor | Raramente |
 | `.claude/commands/` | Atalhos prontos: `/nova-feature`, `/revisar-mudancas`, `/gerar-apk`, `/publicar-web`, `/lancar-versao`, `/preparar-qa` | Raramente |
-| `.claude/skills/README.md` | Lista das skills de design de terceiros que os agentes usam (instale à parte; não vêm no repositório) | Raramente |
+| `.claude/skills/README.md` | Skills de terceiros que os agentes usam e como instalar (não vêm no repositório) | Raramente |
 | `supabase/migrations/` | Histórico de todas as mudanças no banco, em ordem | A cada mudança de banco |
 
 **Regra de ouro:** se uma decisão não está escrita num desses arquivos, para a próxima conversa ela não existe. Peça sempre: *"registre isso no CLAUDE.md"* (se for permanente) ou *"atualize a retomada"* (se for estado do trabalho).
+
+### Ferramentas para trabalhar como no projeto original
+
+1. **Claude Code** (app de desktop, web em https://claude.ai/code ou terminal). É ele que lê o `CLAUDE.md` sozinho e roda os agentes e atalhos.
+2. **Duas skills de design**, instaladas uma vez na pasta do projeto: `ui-ux-pro-max` (usada pelo diretor de design) e `web-design-guidelines` (usada pelo testador e pelo revisor). Uma terceira, `frontend-design`, é opcional. Comandos e detalhes em [`.claude/skills/README.md`](../../.claude/skills/README.md). Sem elas o processo funciona, mas os agentes avisam que pularam essas etapas.
+3. **Python 3**, só para a `ui-ux-pro-max`.
 
 ### Usando outra IA (Cursor, Copilot, ChatGPT, Gemini…)
 
