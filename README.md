@@ -55,7 +55,7 @@ Ordem sugerida para entender o app: `App.tsx` → `src/navigation/` → `src/con
 
 ## Quero rodar o meu
 
-👉 **[Guia de instalação do zero](docs/guia/instalacao.md)**: contas, banco, login Google, versão web, iPhone e APK Android, passo a passo e sem precisar programar. Um assistente preenche a configuração por você:
+👉 **[Guia de instalação do zero](docs/guia/instalacao.md)**: contas, banco, login Google, versão web, iPhone e APK Android, passo a passo e sem precisar programar. Três caminhos: **só Android (APK)**, **só iPhone (web/PWA)** ou **os dois juntos**, cada um com os próximos passos para a Google Play e a App Store. Um assistente preenche a configuração por você:
 
 ```bash
 npm ci                  # instala as dependências nas versões testadas

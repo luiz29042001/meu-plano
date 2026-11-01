@@ -8,6 +8,20 @@ Não precisa saber programar. Onde dá para automatizar, tem comando pronto. Ond
 
 ---
 
+## Escolha o seu caminho
+
+O banco e o login são os mesmos nos três caminhos; o que muda é **como o app chega ao celular**. Escolha uma linha e siga só as partes indicadas.
+
+| Caminho | Para quem | Partes a seguir | Pode pular | Próximo passo (loja) |
+|---|---|---|---|---|
+| **A. Só Android (APK)** | Todos usam Android e querem o app instalado de verdade (notificação e vibração do cronômetro) | 0, 1, 2, 3, 4, 5 (teste no computador), 7 | 6 (web) | [Google Play](#a-android-google-play) |
+| **B. Só iPhone (web/PWA)** | Quem usa iPhone. Sem loja e sem custo: o app abre pelo Safari e fica na tela de início | 0, 1, 2, 3 (sem a 3.5), 4, 5, 6 | 7 (APK) | [App Store](#b-iphone-app-store) |
+| **C. Os dois juntos** (como o projeto original) | Casa mista: uma pessoa no Android, outra no iPhone, dados no mesmo banco | todas (0 a 7) | nada | [as duas lojas](#c-os-dois-google-play-e-app-store) |
+
+> Dica: a versão web (Parte 6) também funciona no Android, pelo Chrome. Se você está no caminho A e quer algo rápido para alguém testar, publique a web também.
+
+---
+
 ## Visão geral
 
 | Parte | O que é | Quem faz | Tempo |
@@ -301,6 +315,56 @@ npx eas-cli@latest build --platform android --profile preview
 ✅ **Confira:** você entra com o Google no APK e vê os mesmos treinos da web (os dados são os mesmos, vêm do mesmo banco).
 
 **Nova versão do APK:** sempre que mudar algo no código que precise chegar ao Android, rode o mesmo comando da 7.3 e instale por cima (os dados não se perdem).
+
+---
+
+## Próximos passos: publicar nas lojas
+
+Para uso pessoal ou em família, **o APK e a web bastam**. A loja serve quando você quer abrir o app para outras pessoas. Isso traz custos, regras e mais trabalho. Antes de começar, em qualquer loja, o app precisa de:
+
+- [ ] **Exclusão de conta dentro do app** (as duas lojas exigem) e uma página web para pedir exclusão.
+- [ ] **Política de privacidade** publicada num endereço público. O app guarda **dados de saúde** (LGPD: consentimento explícito e finalidade clara).
+- [ ] **Conta nova sem programa e com onboarding.** Hoje toda conta nova cai no `fem-5x`, e trocar exige SQL. Para o público, cada pessoa precisa escolher ou montar o próprio treino no app.
+- [ ] **Google Cloud com o app "publicado"** (sair do modo Teste): Branding com página inicial, política de privacidade e domínio verificado. Os escopos usados (e-mail e perfil) não exigem a verificação longa do Google.
+- [ ] Ícone, capturas de tela e textos da loja.
+
+Esses itens são código e configuração: peça à IA uma funcionalidade por vez, com `/nova-feature` (veja [trabalhando-com-ia.md](trabalhando-com-ia.md)).
+
+### A. Android: Google Play
+
+1. **Conta de desenvolvedor:** https://play.google.com/console (taxa única de US$ 25; verificação de identidade).
+2. **Versão exigida do Android:** a Play exige um `targetSdkVersion` recente. O `app.json` deste projeto está em 34; peça à IA para subir ao nível exigido no momento e testar o APK.
+3. **Gerar o pacote da loja** (AAB, não APK); o perfil `production` já existe no `eas.json`:
+   ```bash
+   npx eas-cli@latest build --platform android --profile production
+   ```
+4. **Criar o app no Play Console:** nome, categoria (Saúde e fitness), classificação de conteúdo, formulário de **Segurança dos dados** (declarar dados de saúde, e-mail e nome) e link da política de privacidade.
+5. **Login Google na versão da loja:** a Play assina o app com uma chave própria (Play App Signing). Copie o **SHA-1 da chave de assinatura do app** (Play Console → Configuração → Integridade do app) e adicione no Firebase, como na Parte 7.4. Sem isso, o login falha só para quem instalou pela loja.
+6. **Teste fechado obrigatório:** contas pessoais novas precisam de um teste fechado com um mínimo de testadores (hoje 12) por 14 dias antes de liberar a produção. Depois, peça o acesso à produção no Console.
+7. **Envio automático (opcional):** `npx eas-cli@latest submit --platform android` (exige a chave de serviço da Play; o `eas.json` aponta para `./google-play-key.json`, que **nunca** vai para o Git).
+
+### B. iPhone: App Store
+
+O caminho B usa a web, que não passa pela Apple. Ir para a App Store significa **compilar o app nativo para iOS**, coisa que este projeto ainda **não testou**. Conte com uma rodada de ajustes feita com a IA.
+
+1. **Apple Developer Program:** https://developer.apple.com/programs (US$ 99 por ano). Não precisa de Mac: o Expo compila na nuvem.
+2. **Login Google no iOS:** crie no Google Cloud uma credencial **OAuth do tipo iOS** (com o bundle ID do `app.json`) e peça à IA para preencher `googleIosClientId` no `app.json` e configurar o plugin do Google Sign-In para iOS. O código já está preparado para ler esse campo.
+3. **"Iniciar sessão com a Apple":** a Apple exige oferecer um login equivalente quando o app tem login do Google (diretriz 4.8). Peça à IA essa funcionalidade, usando o provedor Apple do Supabase.
+4. **Cronômetro:** a notificação do descanso existe só no Android (`modules/rest-timer`). No iPhone nativo o cronômetro funciona na tela, sem notificação; se quiser, peça a versão iOS.
+5. **Build e envio:**
+   ```bash
+   npx eas-cli@latest build --platform ios --profile production
+   npx eas-cli@latest submit --platform ios
+   ```
+   O EAS cria os certificados da Apple para você (pede o login da Apple no seu terminal, nunca no chat).
+6. **TestFlight primeiro:** instale pelo app TestFlight e teste tudo. Depois, no App Store Connect: rótulos de privacidade (dados de saúde), capturas de tela e envio para revisão (costuma levar de 1 a 3 dias).
+
+### C. Os dois: Google Play e App Store
+
+1. Faça primeiro a **lista comum** do início desta seção (exclusão de conta, privacidade, onboarding, Google publicado): ela vale para as duas lojas.
+2. Siga **A** e **B**. O mesmo banco e as mesmas contas servem para os dois; os dados de cada pessoa aparecem em qualquer aparelho.
+3. Mantenha a **web** no ar: ela continua sendo o jeito mais rápido de alguém testar sem instalar nada.
+4. Combine versões: ao lançar uma mudança, gere Android e iOS juntos (`--platform all`) para as duas lojas não ficarem diferentes.
 
 ---
 
