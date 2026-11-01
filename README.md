@@ -2,6 +2,10 @@
 
 App pessoal de **treino e dieta**, em uso real por duas pessoas (Android via APK e iPhone via PWA). Construído de ponta a ponta por [Luiz Felipe](https://github.com/luiz29042001), que **não vem de formação em programação**: o projeto mostra como conduzir produto, arquitetura e qualidade orquestrando agentes de IA especializados.
 
+[![CI](https://github.com/luiz29042001/meu-plano/actions/workflows/ci.yml/badge.svg)](https://github.com/luiz29042001/meu-plano/actions/workflows/ci.yml)
+
+> **English summary.** A workout & diet tracking app (React Native/Expo, TypeScript, Supabase with row-level security on every table, a native Kotlin module for the rest-timer notification) used daily by two people on Android and iOS/PWA. It was built end to end by one person with a role-separated AI-agent pipeline (tech lead → design director → human approval → backend → UI → QA → code review), documented in `.claude/` and `docs/`. The commit history is intact (personal data was scrubbed from every commit). Docs are in Brazilian Portuguese.
+
 > Os dados pessoais (dietas reais, prescrição de nutricionista, chaves e IDs do projeto) foram removidos de todo o histórico. A dieta aqui é um exemplo fictício e as chaves são placeholders.
 
 ## O que o app faz
@@ -32,6 +36,17 @@ O desenvolvimento segue um fluxo com papéis separados, definidos em [`.claude/a
 Fluxo: planejamento + design → **aprovação humana** → dados → UI → QA → revisão → publicação, sempre com OK humano antes de qualquer ação em produção. Os modelos são escolhidos por custo/risco (modelo médio por padrão; o mais forte só em revisão de segurança e impasses). O [`CLAUDE.md`](CLAUDE.md) é o "manual do projeto" lido pelos agentes — regras, armadilhas já resolvidas e decisões.
 
 **Para navegar a evolução:** o histórico de commits conta a história (versão inicial → multi-programa → web/PWA → segurança → redesign → fluxo enxuto de agentes). Veja também `docs/retomada.md`, `docs/roadmap.md` e os relatórios em `docs/review/`.
+
+## Estrutura
+```
+App.tsx · src/{screens,components,hooks,services,contexts,utils,types}
+modules/rest-timer/   módulo nativo Android (Kotlin): alarme e notificação do cronômetro
+supabase/migrations/  schema, RLS e dados de programa, em ordem cronológica
+.claude/              agentes e comandos do pipeline
+docs/                 plano técnico, design, QA e revisões (uma pasta por papel)
+public/               PWA (manifest, ícones)
+```
+Pontos de leitura sugeridos: `docs/review/` (revisões que acharam falhas reais e as correções), `docs/tech/` (planos e decisões) e as "Armadilhas já resolvidas" no `CLAUDE.md`.
 
 ## Rodando
 ```bash

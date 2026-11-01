@@ -181,7 +181,6 @@ Estado e próximos passos detalhados em **`docs/retomada.md`** (leia ao começar
 
 - ~~Gerar um novo APK~~: build de 10/10/2026 em andamento (ver acima).
 - **Build EAS pela nuvem (descoberto em 10/10/2026):** a chave do Expo é injetada pelo proxy, então o `eas` diz "Not logged in". Use `EXPO_TOKEN=proxy-injected EAS_NO_VCS=1 npx eas-cli build --platform android --profile preview --no-wait --non-interactive`. O Claude Code pede OK explícito no chat para builds e para push no repositório do site (`luiz29042001.github.io`, adicionar com `add_repo` e acesso de escrita).
-- O token do GitHub colado no chat antigo deve ser **revogado**.
 
 ## Roadmap
 
@@ -192,6 +191,6 @@ Decidido com o Luiz, nesta ordem: (1) cada usuário com seus próprios planos + 
 
 - **Google Cloud**, projeto "MeuPlano": a tela de consentimento OAuth está em modo **Teste**, e a conta da esposa está cadastrada como usuária de teste. Para abrir o app ao público, é preciso **publicar**, o que exige páginas de início e de política de privacidade no Branding.
 - **Supabase Auth:** Site URL `https://luiz29042001.github.io`, Redirect URL `https://luiz29042001.github.io/**`. O provedor Google está configurado com o Web Client ID e o secret. O provedor **E-mail fica ligado de propósito** (decisão do Luiz, 06/10/2026: no futuro haverá login com e-mail e senha para quem não quiser Google). O app ainda não tem tela para isso.
-- **GitHub:** `gh` CLI logado como `luiz29042001` (credencial do git via `gh auth setup-git`). Pasta local do repositório github.io: `D:\.Pessoal\.appsaude\luiz29042001.github.io`.
+- **GitHub:** `gh` CLI logado como `luiz29042001` (credencial do git via `gh auth setup-git`).
 - **Integração completa:** Claude Code opera Supabase (CLI), GitHub (`gh`/git) e EAS (`eas`, logado como `luiz2904`). O Luiz só dá OK; não precisa abrir os painéis.
 - **EAS:** conta `luiz2904s-team`, projeto `app-saude`. O keystore é gerenciado pelo EAS.

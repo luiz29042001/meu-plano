@@ -7,6 +7,7 @@
     "ios": "expo run:ios",
     "build:android": "eas build --platform android",
     "build:preview": "eas build --platform android --profile preview",
+    "typecheck": "tsc --noEmit -p .",
     "build:web": "expo export --platform web --output-dir dist"
   },
   "dependencies": {
