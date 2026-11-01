@@ -17,7 +17,8 @@ A IA não lembra de conversas anteriores. Toda a memória do projeto mora em **a
 | `docs/roadmap.md` | Plano de longo prazo, na ordem decidida | Quando muda a prioridade |
 | `docs/tech/`, `docs/design/`, `docs/review/` | Planos técnicos, especificações visuais e revisões de cada funcionalidade | A cada funcionalidade |
 | `.claude/agents/` | A "equipe" especializada: líder técnico, diretor de design, banco de dados, construtor de telas, testador, revisor | Raramente |
-| `.claude/commands/` e `.claude/skills/` | Atalhos prontos: `/nova-feature`, `/revisar-mudancas`, `/gerar-apk`, `/publicar-web`, `/lancar-versao`, `/preparar-qa` | Raramente |
+| `.claude/commands/` | Atalhos prontos: `/nova-feature`, `/revisar-mudancas`, `/gerar-apk`, `/publicar-web`, `/lancar-versao`, `/preparar-qa` | Raramente |
+| `.claude/skills/README.md` | Lista das skills de design de terceiros que os agentes usam (instale à parte; não vêm no repositório) | Raramente |
 | `supabase/migrations/` | Histórico de todas as mudanças no banco, em ordem | A cada mudança de banco |
 
 **Regra de ouro:** se uma decisão não está escrita num desses arquivos, para a próxima conversa ela não existe. Peça sempre: *"registre isso no CLAUDE.md"* (se for permanente) ou *"atualize a retomada"* (se for estado do trabalho).
