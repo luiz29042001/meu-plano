@@ -1,12 +1,13 @@
 # Skills usadas no processo (instalar à parte)
 
-Os agentes de `.claude/agents/` chamam algumas skills públicas de terceiros. Elas **não vêm neste repositório** (são de outros autores). Instale estas para trabalhar do mesmo jeito que o projeto original. A lista tem **só** as skills que os agentes de fato usam.
+Os agentes de `.claude/agents/` chamam algumas skills públicas de terceiros. Elas **não vêm neste repositório** (são de outros autores). Instale estas para trabalhar do mesmo jeito que o projeto original. A lista tem **só** as skills que os agentes de fato usam, mais uma opcional de economia de tokens que você usa na conversa.
 
 | Skill | Quem usa | Para quê | Obrigatória? |
 |---|---|---|---|
 | `ui-ux-pro-max` | `design-director` | Pesquisar estilos, paletas, fontes e regras de usabilidade (inclusive para React Native) antes de desenhar uma tela | Recomendada: sem ela, o design-director desenha só com o design system do projeto |
 | `web-design-guidelines` | `qa-tester` e `code-reviewer` | Revisar as telas alteradas contra boas práticas de interface (acessibilidade, formulários, foco, animação) | Recomendada: sem ela, os dois avisam no relatório e seguem sem essa checagem |
 | `frontend-design` | `design-director` (se estiver instalada) | Direção estética para a interface não ficar com cara de modelo pronto | Opcional |
+| `caveman` | você, na conversa principal (`/caveman`) | Respostas mais curtas da IA, para gastar menos tokens | Opcional |
 
 O design system do projeto (`docs/design/design-system.md` e `src/utils/theme.ts`) **vence** qualquer sugestão das skills.
 
@@ -39,8 +40,19 @@ Dentro do Claude Code, digite:
 ```
 Se o Claude Code disser que não conhece esse catálogo, rode antes `/plugin marketplace add anthropics/claude-plugins-official`.
 
+### 4. `caveman` (opcional, economia de tokens)
+
+Faz a IA responder direto, sem saudação, rodeio nem resumo no fim, mantendo comandos, caminhos e números exatos. Liga com `/caveman` e desliga com "normal mode". Avisos de segurança e confirmações de ações irreversíveis continuam em texto normal.
+
+```bash
+npx skills add JuliusBrussee/caveman -a claude-code
+```
+- Fonte: https://github.com/JuliusBrussee/caveman. Vem junto: `/caveman-commit` (mensagem de commit curta), `/caveman-review` (revisão em uma linha por achado) e `/caveman-help`, além dos modos `/ultracave` (mais seco) e `/megacave`.
+- **Prefira esse comando ao plugin.** O plugin liga o modo curto em **toda** conversa, inclusive nos agentes. Para quem não é desenvolvedor, isso atrapalha justamente as explicações e os pedidos de OK.
+- **Expectativa realista:** a medição publicada pelo próprio autor (versão 3.1.0, uma rodada de 10 perguntas) mostra o `caveman` só ~3% abaixo de um simples "responda de forma concisa", e o `ultracave` ~35% abaixo. O ganho maior vem de outras práticas (ver "Economia" em [`docs/guia/trabalhando-com-ia.md`](../../docs/guia/trabalhando-com-ia.md#7-economia-tempo-e-custo)).
+
 ## Conferir
 
-Abra o Claude Code na pasta do projeto e pergunte: *"Quais skills você tem disponíveis?"*. Devem aparecer `ui-ux-pro-max` e `web-design-guidelines` (e `frontend-design`, se instalou).
+Abra o Claude Code na pasta do projeto e pergunte: *"Quais skills você tem disponíveis?"*. Devem aparecer `ui-ux-pro-max` e `web-design-guidelines` (e as opcionais que você instalou).
 
 > As pastas das skills instaladas ficam fora do Git (`.gitignore`), para não voltarem a ser publicadas junto com o projeto.

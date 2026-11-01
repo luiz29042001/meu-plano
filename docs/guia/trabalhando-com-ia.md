@@ -193,6 +193,19 @@ Estão no `CLAUDE.md`; vale saber que existem para estranhar se a IA propuser o 
 - **Uma funcionalidade por conversa**, com `/clear` ao terminar.
 - **Não peça "revise tudo"** sem motivo: peça revisão das mudanças (`/revisar-mudancas`) antes de lançar uma versão.
 - Para ajustes pequenos, dispense o pipeline completo: peça direto.
+- **Respostas curtas (opcional):** a skill `caveman` (`/caveman`) corta saudações, rodeios e resumos. Instalação e expectativa realista em [`.claude/skills/README.md`](../../.claude/skills/README.md).
+
+### Falar em inglês com a IA gasta menos
+
+**A lógica:** a IA não lê palavras, lê **tokens** (pedaços de palavra), e o custo e o limite de uso são contados em tokens. O "dicionário" de pedaços foi montado com textos majoritariamente em inglês, então palavras em inglês costumam virar 1 pedaço só, e palavras em português, sobretudo as com acento ou flexão ("configurações", "exercícios"), se quebram em mais pedaços. O mesmo conteúdo em português costuma custar **visivelmente mais tokens** que em inglês. A diferença exata varia com o texto e com o modelo.
+
+**Onde isso pesa de verdade:** no que a IA **relê a cada mensagem**. O `CLAUDE.md`, os arquivos dos agentes e o histórico da conversa são reenviados a cada chamada; uma frase a mais ali é paga centenas de vezes. Uma pergunta sua isolada pesa pouco.
+
+**Como aproveitar sem perder clareza:**
+1. **Arquivos permanentes em inglês** (`CLAUDE.md`, `.claude/agents/`, `.claude/commands/`, `docs/tech/`): é onde está o maior ganho. Peça à IA para traduzir, mantendo nomes de tabelas, comandos e regras idênticos.
+2. **Seus pedidos em inglês**, se você se sente à vontade. Se não, escreva em português: um pedido bem explicado vale mais que um pedido barato e ambíguo.
+3. **Respostas no idioma em que você entende melhor.** Dá para combinar: arquivos em inglês e a regra "always answer the user in Brazilian Portuguese" no `CLAUDE.md`.
+4. **O que nunca muda de idioma:** o texto que aparece no app (interface em pt-BR) e o que você precisa entender para aprovar algo (banco, publicação, exclusão). Na dúvida, clareza vence economia.
 
 ---
 
