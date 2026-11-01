@@ -1,141 +1,44 @@
-# Meu Plano — React Native + Expo + Supabase
+# Meu Plano
+
+App pessoal de **treino e dieta**, em uso real por duas pessoas (Android via APK e iPhone via PWA). Construído de ponta a ponta por [Luiz Felipe](https://github.com/luiz29042001), que **não vem de formação em programação**: o projeto mostra como conduzir produto, arquitetura e qualidade orquestrando agentes de IA especializados.
+
+> Os dados pessoais (dietas reais, prescrição de nutricionista, chaves e IDs do projeto) foram removidos de todo o histórico. A dieta aqui é um exemplo fictício e as chaves são placeholders.
+
+## O que o app faz
+- Programas de treino por usuário (ex.: Superior/Inferior 4x, Inferior/Superior + Glúteos 5x), com próximo treino calculado pelo último concluído, séries marcadas, anotações de carga por exercício e cronômetro de descanso (notificação no Android).
+- Plano alimentar por usuário (fixo no código ou vindo do banco), com variantes e substitutos.
+- Calendário de conclusões, tema claro/escuro, login com Google.
 
 ## Stack
-- React Native 0.74 + Expo SDK 51
-- Supabase (PostgreSQL + Auth + RLS)
-- Google Sign-In via `@react-native-google-signin/google-signin`
-- React Navigation v6
-- EAS Build para Android
+React Native 0.74 + Expo SDK 51 + TypeScript · React Navigation · Supabase (Postgres, Auth, **RLS em todas as tabelas**) · módulo nativo Kotlin para a notificação do cronômetro · EAS (APK) · web/PWA no GitHub Pages.
 
----
+## Segurança (decisões que valem destaque)
+- RLS explícita nas 9 tabelas; o app só consegue alterar colunas permitidas do próprio perfil (grant + trigger `protect_profile_access_columns`) — ver `supabase/migrations/20261005120000_seguranca_perfil_rls.sql`.
+- Nunca `service_role` no app; segredos só em Edge Function; dieta nunca gerada por IA (Lei 8.234/91); dados de saúde tratados conforme a LGPD.
+- Auditorias e correções documentadas em `docs/review/` e `docs/tech/`.
 
-## 1. Supabase — Setup
+## Como foi construído: pipeline de agentes
+O desenvolvimento segue um fluxo com papéis separados, definidos em [`.claude/agents/`](.claude/agents) e acionados por comandos em [`.claude/commands/`](.claude/commands). **Quem constrói nunca se aprova.**
 
-1. Crie um projeto em https://supabase.com
-2. Aplique as migrações de `supabase/migrations/` em ordem (Supabase CLI: `supabase db push`). O projeto de produção já tem as migrações antigas aplicadas: veja `docs/tech/correcoes-revisao-2026-10-05-backend.md` antes de usar o CLI nele.
-3. Em **Authentication → Providers → Google**, ative e adicione suas credenciais OAuth
-4. Copie `Project URL` e `anon key` de **Settings → API**
+| Agente | Papel | Entrega em |
+|---|---|---|
+| tech-lead | arquitetura, plano técnico, critérios de aceite | `docs/tech/` |
+| design-director | direção visual, spec e mockup | `docs/design/` |
+| backend-engineer | migrações, RLS, serviços (nunca aplica em produção) | `supabase/migrations/` |
+| ui-builder | implementa a tela conforme a spec | código |
+| qa-tester | valida a versão web (Playwright) | `docs/qa/` |
+| code-reviewer | revisão de corretude e segurança | `docs/review/` |
 
----
+Fluxo: planejamento + design → **aprovação humana** → dados → UI → QA → revisão → publicação, sempre com OK humano antes de qualquer ação em produção. Os modelos são escolhidos por custo/risco (modelo médio por padrão; o mais forte só em revisão de segurança e impasses). O [`CLAUDE.md`](CLAUDE.md) é o "manual do projeto" lido pelos agentes — regras, armadilhas já resolvidas e decisões.
 
-## 2. Google OAuth — Credenciais
+**Para navegar a evolução:** o histórico de commits conta a história (versão inicial → multi-programa → web/PWA → segurança → redesign → fluxo enxuto de agentes). Veja também `docs/retomada.md`, `docs/roadmap.md` e os relatórios em `docs/review/`.
 
-1. Acesse https://console.cloud.google.com
-2. Crie um projeto → **APIs & Services → Credentials**
-3. Crie **OAuth 2.0 Client ID**:
-   - **Web application** → copie o `Web Client ID`
-   - **Android** → use o SHA-1 do keystore + package `com.meuplano.app` → copie o `Android Client ID`
-4. Adicione o Web Client ID também nas configurações do Supabase Google Provider
-
----
-
-## 3. Configuração do projeto
-
-### app.json — substitua os placeholders:
-```json
-"extra": {
-  "supabaseUrl": "https://xxxx.supabase.co",
-  "supabaseAnonKey": "eyJ...",
-  "googleWebClientId": "xxxx.apps.googleusercontent.com",
-  "googleAndroidClientId": "xxxx.apps.googleusercontent.com",
-  "eas": { "projectId": "seu-eas-project-id" }
-}
-```
-
-### google-services.json
-Baixe do Google Cloud Console (Android → Download JSON) e coloque na raiz do projeto.
-
----
-
-## 4. Instalação
-
+## Rodando
 ```bash
 npm install
-npx expo install
+# preencha app.json > expo.extra (supabaseUrl, supabaseAnonKey, client IDs do Google)
+# e coloque o seu google-services.json na raiz
+npx expo start --web      # web
+npx tsc --noEmit -p .     # checagem de tipos
 ```
-
----
-
-## 5. Build de desenvolvimento (teste no dispositivo)
-
-```bash
-# Instale EAS CLI
-npm install -g eas-cli
-
-# Login
-eas login
-
-# Configure o projeto (primeira vez)
-eas build:configure
-
-# Build APK de desenvolvimento
-eas build --platform android --profile development
-
-# Ou rode direto com expo-dev-client instalado no device
-npx expo start --dev-client
-```
-
----
-
-## 6. Build de produção
-
-```bash
-# APK para distribuição interna
-eas build --platform android --profile preview
-
-# AAB para Google Play
-eas build --platform android --profile production
-```
-
----
-
-## Estrutura do projeto
-
-```
-meu-plano-app/
-├── App.tsx                      # Entry point
-├── app.json                     # Expo config
-├── eas.json                     # EAS Build profiles
-├── supabase/
-│   └── schema.sql               # Schema completo + seeds
-└── src/
-    ├── types/index.ts           # TypeScript types
-    ├── contexts/
-    │   ├── AuthContext.tsx      # Sessão Supabase
-    │   └── TimerContext.tsx     # Timer global flutuante
-    ├── services/
-    │   ├── supabase.ts          # Client Supabase
-    │   ├── auth.ts              # Google Sign-In
-    │   ├── workout.ts           # CRUD treinos/checks
-    │   ├── profile.ts           # CRUD perfil/dieta
-    │   └── dietData.ts          # Dados estáticos da dieta
-    ├── hooks/
-    │   ├── useWorkout.ts        # Hook principal de treino
-    │   └── useCalendar.ts       # Hook do calendário
-    ├── navigation/index.tsx     # Stack navigator
-    ├── screens/
-    │   ├── LoginScreen.tsx
-    │   ├── HomeScreen.tsx       # Dashboard com stats reais
-    │   ├── WorkoutScreen.tsx    # Treino com checks persistidos
-    │   ├── DietScreen.tsx       # Dieta A/B com preferência no DB
-    │   └── CalendarScreen.tsx   # Calendário persistente
-    ├── components/
-    │   └── FloatingTimer.tsx    # Timer overlay global
-    └── utils/
-        ├── theme.ts             # Cores e constantes de UI
-        └── date.ts              # Helpers de data
-```
-
----
-
-## Persistência implementada
-
-| Dado | Tabela Supabase |
-|------|----------------|
-| Perfil e variante de dieta | `profiles` |
-| Treinos concluídos | `workout_completions` |
-| Checks de exercícios por dia | `exercise_checks` |
-| Estatísticas (streak, total) | `user_stats` (auto-calculado por trigger) |
-| Dias e exercícios | `workout_days` + `exercises` (seed) |
-
-Todos protegidos por **Row Level Security** — cada usuário só acessa seus próprios dados.
+É preciso um projeto Supabase próprio com as migrações de `supabase/migrations/` aplicadas.

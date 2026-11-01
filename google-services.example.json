@@ -1,0 +1,6 @@
+{
+  "_comment": "Substitua pelo google-services.json do SEU projeto Firebase/Google Cloud. O arquivo real fica fora do repositorio (.gitignore).",
+  "project_info": { "project_number": "000000000000", "project_id": "seu-projeto" },
+  "client": [],
+  "configuration_version": "1"
+}
